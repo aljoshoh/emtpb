@@ -78,3 +78,7 @@ Temporary Items
 # Deprecated code
 old/
 
+# Data and Metadata
+metadata/
+data/
+

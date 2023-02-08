@@ -33,7 +33,21 @@ RUN apt-get update -qq && apt-get -y --no-install-recommends install \
 	cargo \
 	wget \
         cmake \
-        libnlopt-dev
+        libnlopt-dev \
+        python-dev \
+        python3-dev \
+        python3-pip
+
+# install libgit2 version 1.5.x as requirement for dvc
+RUN cd /usr/local && \
+    wget https://github.com/libgit2/libgit2/archive/refs/tags/v1.5.0.tar.gz -O libgit2-1.5.0.tar.gz && tar xzf libgit2-1.5.0.tar.gz && \
+    cd libgit2-1.5.0/ && \
+    cmake . && \
+    make && \
+    sudo make install
+
+# install dvc
+RUN pip3 install dvc
 
 # install some basic packages
 RUN install2.r --error \
