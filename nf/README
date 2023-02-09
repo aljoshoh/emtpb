@@ -1,0 +1,2 @@
+# For benchmarking and modeling
+nf run train.nf --file=/path/to/file/02_benchmark.ipynb --container emtpb --amount=27 -profile slurm -bg

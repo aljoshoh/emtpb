@@ -49,6 +49,10 @@ RUN cd /usr/local && \
 # install dvc
 RUN pip3 install dvc
 
+# install python stuff
+RUN pip3 install jupyterlab
+RUN pip3 install pandas numpy joblib scikit-learn matplotlib 
+
 # install some basic packages
 RUN install2.r --error \
 	--deps TRUE \
@@ -112,5 +116,8 @@ COPY ./scripts/start_rstudio.sh /bin/
 RUN chmod +x /bin/start_rstudio.sh && \
   ln -s -r /bin/start_rstudio.sh /bin/start_rstudio
 # all done.
+
+# user
+USER rstudio
 
 # server can now be started by calling '/bin/start_rstudio <port>' in the image
