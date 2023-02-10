@@ -118,6 +118,6 @@ RUN chmod +x /bin/start_rstudio.sh && \
 # all done.
 
 # user
-USER rstudio
+#USER rstudio
 
 # server can now be started by calling '/bin/start_rstudio <port>' in the image
