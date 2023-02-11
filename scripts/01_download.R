@@ -116,7 +116,7 @@ names(EMT_gs) <- cancertypes
 saveRDS(EMT_gs, file = "metadata/EMT_gs.rds")
 write_csv(EMTscores, file = "metadata/EMTscores.csv")
 write_csv(matrix_exp, file = "metadata/matrix_exp.csv")
-write_csv(matrix_mut_pancan, file = "metadata/matrix_mut_pancan.csv")
+write_csv(matrix_mut_pancan, file = "metadata/matrix_mut_PANCAN.csv")
 write_csv(matrix_resp, file = "metadata/matrix_resp.csv")
 for(cancertype in cancertypes){
   write_csv(list_mut_ct[[cancertype]], file = paste0("metadata/matrix_mut_",cancertype,".csv"))
