@@ -16,11 +16,11 @@ df <- tibble(drug = character(length = ncol(resp)),
 dir.create(results_path)
 overwrite <- FALSE
 # costum
-which_run <- 25
+#which_run <- 25
 # costum
 
 # iterate over cancer
-for( which_run in 1:length(cancertypes)){
+for( which_run in 1:length(cancertypes)){ # <----- put 1 to include PANCAN
   save_path <- paste0(results_path,"/",cancertypes[which_run],"_performances.rds")
   if(overwrite & file.exists(save_path)){
     message(paste0("File for cancertype ",cancertypes[which_run]," exists, skipping.."))
