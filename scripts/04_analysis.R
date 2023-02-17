@@ -1,46 +1,27 @@
-library(ggplot2)
-library(gridExtra)
-library(ggrepel)
+setwd('emtpb/')
 library(readr)
 library(dplyr)
-#`194-GDSC1`,matrix_resp$`1559-GDSC2`
+library(tidyr)
+library(tibble)
 
 EMTscores <- read_csv("metadata/EMTscores.csv")
-matrix_resp <- read_csv("metadata/matrix_resp.csv")
+cancertypes <- unique(c('PANCAN', unlist(EMTscores['TCGA Desc'])))
+run <- "run2"
+resp = read_csv("metadata/matrix_resp.csv") %>% dplyr::select(-c("COSMIC ID","TCGA Desc"))
+df <- tibble(drug = character(length = ncol(resp)),
+             values_na = lapply(1:ncol(resp), list),
+             values = lapply(1:ncol(resp), list),
+             cancertype = rep(cancertypes[which_run],ncol(resp)),
+             .rows = ncol(resp)) <- paste0("metadata/",run,"/results")
+dir.create(results_path)
+overwrite <- FALSE
+# costum
+which_run <- 25
+# costum
 
-tmp1 <- read_csv("data/PANCANCER_Genetic_features_Sat Feb  4 15_33_58 2023.csv")
-tmp2 <- read_csv("data/PANCANCER_Genetic_features_Sat Feb  4 15_42_40 2023.csv")
-tmp <- full_join(tmp1, tmp2)
-cell_line_names <- tmp[,c("COSMIC ID","Cell Line Name")] %>% distinct()
-m <- full_join(EMTscores, matrix_resp)[,c("COSMIC ID","TCGA Desc","1559-GDSC2","194-GDSC1","EMT_score")]
-m <- full_join(m, cell_line_names)
-m$color <- "-"
-m$color[m$`Cell Line Name` %in% ("COLO-783")] <- "mismatched"
-m$color[m$`Cell Line Name` %in% ("UACC-257")] <- "mismatched"
-m$color[m$`Cell Line Name` %in% c("SK-MEL-5","A375","RPMI-7951","IGR-37","SK-MEL-24")] <- "ordered before"
+# iterate over cancer
+#for( which_run in 1:length(cancertypes)){
+save_path <- paste0(results_path,"/",cancertypes[which_run],"_performances.rds")
+performances <- read_rds(save_path)
+performances$delta <- unlist(lapply(1:nrow(performances),function(i) tryCatch(mean(performances[i,]$values[[1]]$false-performances[100,]$values[[1]]$true), error = function(e) NA)))
 
-
-###
-grid.arrange(
-  ggplot(data=m[m$`TCGA Desc` == "SKCM",], aes(x= m$EMT_score[m$`TCGA Desc` == "SKCM"], 
-           y = m$`1559-GDSC2`[m$`TCGA Desc` == "SKCM"]))+
-  geom_point(alpha = 0.3, aes(color = color))+
-  #geom_vline(xintercept = -2.380233)+
-  #geom_hline(yintercept = -2.452889)+
-  ylab("log(ic50)")+
-  xlab("mesenchymal<>epithelial")+
-  theme_minimal()+
-  ggtitle("GDSC2")+
-  geom_text_repel(aes(label = m$`Cell Line Name`[m$`TCGA Desc` == "SKCM"]),size = 2),
-  ggplot(data=m[m$`TCGA Desc` == "SKCM",], aes(x= m$EMT_score[m$`TCGA Desc` == "SKCM"], 
-                                             y = m$`194-GDSC1`[m$`TCGA Desc` == "SKCM"]))+
-  geom_point(alpha = 0.3, aes(color = color))+
-  #geom_vline(xintercept = -2.380233)+
-  #geom_hline(yintercept = -1.569377)+
-  ylab("log(ic50)")+
-  xlab("mesenchymal<>epithelial")+
-  theme_minimal()+
-  ggtitle("GDSC1")+
-  geom_text_repel(aes(label = m$`Cell Line Name`[m$`TCGA Desc` == "SKCM"]),size = 2) 
-)
-#plot(m$EMT_score[m$`TCGA Desc` == "SKCM"], m$`194-GDSC1`[m$`TCGA Desc` == "SKCM"])
