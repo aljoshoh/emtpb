@@ -30,14 +30,14 @@ results_path <- paste0("metadata/",run,"/results")
 dir.create(results_path)
 
 # costum
-which_run <- 25
+#which_run <- 25
 # costum
 
 EMTscores <- read_csv("metadata/EMTscores.csv")
 resp = read_csv("metadata/matrix_resp.csv") #%>% dplyr::select(-c("COSMIC ID","TCGA Desc"))
 
 # iterate over cancer
-for( which_run in 2:length(cancertypes)){ # <----- put 1 to include PANCAN
+for( which_run in 1:length(cancertypes)){
   mut = read_csv(paste0("metadata/matrix_mut_",cancertypes[which_run],".csv"))
   save_path <- paste0(results_path,"/",cancertypes[which_run],"_performances.rds")
   performances <- read_rds(save_path)
@@ -51,21 +51,32 @@ for( which_run in 2:length(cancertypes)){ # <----- put 1 to include PANCAN
   performances$Drug <- performances$drug
   performances$label <- ""
   performances$drugname<- unlist(lapply(1:nrow(performances), function(x){tmp_drugs$`Drug Name`[tmp_drugs$drug == performances[x,]$drug]}))
-  performances <- left_join(x = performances, y = tmp_drugs %>% dplyr::select(-c("Max conc")))
+  performances <- left_join(x = performances, y = tmp_drugs %>% dplyr::select(-c("Max Conc")))
   
   fraction_extrapolated <- c()
-  j <- full_join(EMTscores[EMTscores$`TCGA Desc` == cancertypes[which_run],], mut)
+  if(cancertypes[which_run] == "PANCAN"){
+    j <- full_join(EMTscores, mut)
+  }else{
+    j <- full_join(EMTscores[EMTscores$`TCGA Desc` == cancertypes[which_run],], mut)
+  }
   for( i in 1:nrow(performances)){
-    df <- full_join(
-        resp[resp$`TCGA Desc` == cancertypes[which_run],c(1,i+2),drop = F], j, by = "COSMIC ID") %>% 
-      distinct() %>%
-      dplyr::select(-c(`COSMIC ID`,`TCGA Desc`)) %>%
-      na.omit()
+    if(cancertypes[which_run] == "PANCAN"){
+      df <- full_join(
+        resp[,c(1,i+2),drop = F], j, by = "COSMIC ID") %>% 
+        distinct() %>%
+        dplyr::select(-c(`COSMIC ID`,`TCGA Desc`)) %>%
+        na.omit()
+    }else{
+      df <- full_join(
+          resp[resp$`TCGA Desc` == cancertypes[which_run],c(1,i+2),drop = F], j, by = "COSMIC ID") %>% 
+        distinct() %>%
+        dplyr::select(-c(`COSMIC ID`,`TCGA Desc`)) %>%
+        na.omit()
+    }
     maxc <- tmp_drugs$`Max Conc`[tmp_drugs$drug == colnames(df)[1]]
     fraction_extrapolated[which(performances$drug == colnames(df)[1])] <- length(which((exp(unlist(df[1])) > 2*maxc)))/nrow(df)
   }; performances$fraction_extrapolated <- fraction_extrapolated
   
-  results_path <- paste0("paper/metadata")
   save_path <- paste0(results_path,"/",cancertypes[which_run],"_performances_v2.rds")
   saveRDS(performances, file = save_path)
 }
