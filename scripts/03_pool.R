@@ -12,15 +12,18 @@ df <- tibble(drug = character(length = ncol(resp)),
              values_na = lapply(1:ncol(resp), list),
              values = lapply(1:ncol(resp), list),
              cancertype = rep(cancertypes[which_run],ncol(resp)),
-             .rows = ncol(resp)) <- paste0("metadata/",run,"/results")
+             .rows = ncol(resp))
+
+results_path <- paste0("metadata/",run,"/results")
 dir.create(results_path)
 overwrite <- FALSE
 # costum
-which_run <- 25
+#which_run <- 25
 # costum
 
 # iterate over cancer
 for( which_run in 1:length(cancertypes)){
+  message(which_run)
   save_path <- paste0(results_path,"/",cancertypes[which_run],"_performances.rds")
   if(overwrite & file.exists(save_path)){
     message(paste0("File for cancertype ",cancertypes[which_run]," exists, skipping.."))
