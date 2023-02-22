@@ -1,0 +1,481 @@
+---
+title: "Manuscript figures"
+author: "Alexander Ohnmacht and Marisa Schübel"
+date: "17/02/2023"
+output:
+ html_document:
+    toc: true
+    fig_caption: true
+    number_sections: true
+    fig_width: 7
+    fig_height: 6
+---
+
+
+```{r set, include=FALSE}
+knitr::opts_chunk$set(xtable.comment = FALSE, 
+                      echo=T,
+                      eval=T, 
+                      message = F,
+                      warning=F, 
+                      error = F,
+                      cache = F, 
+                      tidy = F, 
+                      size="footnotesize",
+                      fig.pos='H',
+                      dev = "pdf",
+                      results='markup',
+                      fig.lp='fig:',
+                      fig.align = 'center',
+                      fig.path='figures/v1-', 
+                      cache.path = 'cache/v1-',
+                      tidy.opts=list(width.cutoff=80), 
+                      dev = 'pdf' 
+)
+```
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+library(ggrepel)
+library(ComplexHeatmap)
+library(circlize)
+library(shades)
+library(viridis)
+
+path <- "/home/rstudio/emtpb/"
+
+#load data frames
+#################
+
+# Import benchmarks for SKCM
+performances_SKCM <- readRDS(paste0(path,"/metadata/run2/results/SKCM_performances_v2.rds")) %>%
+  dplyr::filter(fraction_extrapolated < 0.7 & !is.na(pvalue)) # filter NAs and extrapolated
+performances_SKCM$Drug <- performances_SKCM$drug
+performances_SKCM$label[performances_SKCM$drug == "1559-GDSC2"] <- "Luminespib"
+performances_SKCM$label[performances_SKCM$drugname == "Nutlin-3a (-)"] <- "Nutlin 3a"
+
+# Import resp (drug data) and EMTscores
+EMTscores <- read_csv(paste0(path,"metadata/EMTscores.csv"))
+EMTscores$EMT_score <- -EMTscores$EMT_score
+resp = read_csv(paste0(path,"metadata/matrix_resp.csv")) #%>% dplyr::select(-c("COSMIC ID","TCGA Desc"))
+
+# Import predictions from luminespib in SKCM
+which <- which(colnames(resp) == "1559-GDSC2")-2
+files <- list.files(path = paste0(path,"metadata/run2/predictions/SKCM"), pattern = paste0("._",as.character(which-1),"_."), full.names = TRUE)
+model_emt_luminespib <- read_csv(files[1], 
+                        col_types = cols(
+                          `COSMIC ID` = col_double(),
+                          preds = col_double(),
+                          truth = col_double(),
+                          `repeat` = col_double(),
+                          folds = col_double(),
+                          repeatfold = col_character()
+                        )) %>% group_by(truth) %>% mutate(preds_mean_emt = mean(preds)) %>% dplyr::select(-c(`COSMIC ID`,preds,`repeat`,folds,repeatfold)) %>% distinct()
+model_base_luminespib <- read_csv(files[2], 
+                       col_types = cols(
+                         `COSMIC ID` = col_double(),
+                         preds = col_double(),
+                         truth = col_double(),
+                         `repeat` = col_double(),
+                         folds = col_double(),
+                         repeatfold = col_character()
+                       )) %>% group_by(truth) %>% mutate(preds_mean_baseline = mean(preds)) %>% dplyr::select(-c(`COSMIC ID`,preds,`repeat`,folds,repeatfold)) %>% distinct()
+
+which <- which(colnames(resp) == "1047-GDSC1")-2
+files <- list.files(path = paste0(path,"metadata/run2/predictions/SKCM"), pattern = paste0("._",as.character(which-1),"_."), full.names = TRUE)
+model_emt_nutlin3a <- read_csv(files[1], 
+                        col_types = cols(
+                          `COSMIC ID` = col_double(),
+                          preds = col_double(),
+                          truth = col_double(),
+                          `repeat` = col_double(),
+                          folds = col_double(),
+                          repeatfold = col_character()
+                        )) %>% group_by(truth) %>% mutate(preds_mean_emt = mean(preds)) %>% dplyr::select(-c(preds,`repeat`,folds,repeatfold)) %>% distinct()
+model_base_nutlin3a <- read_csv(files[2], 
+                       col_types = cols(
+                         `COSMIC ID` = col_double(),
+                         preds = col_double(),
+                         truth = col_double(),
+                         `repeat` = col_double(),
+                         folds = col_double(),
+                         repeatfold = col_character()
+                       )) %>% group_by(truth) %>% mutate(preds_mean_baseline = mean(preds)) %>% dplyr::select(-c(preds,`repeat`,folds,repeatfold)) %>% distinct()
+
+EMT_gs <- readRDS(paste0(path,"metadata/EMT_gs.rds"))
+
+```
+
+## Figures
+```{r Fig1_c, fig.width= 3, fig.height=2}
+ggplot(performances_SKCM[order(performances_SKCM$cor_mut),]) + 
+  geom_errorbar(aes(x = reorder(Drug, cor_mut),ymin = cor_emt-abs(cor_emt_sd), ymax=cor_emt+abs(cor_emt_sd)), color="lightgrey") +
+  geom_line(aes(x = reorder(Drug, cor_mut), y = cor_mut, group = 1)) + 
+  geom_ribbon(aes(x = 1:length(Drug),ymin = cor_mut-cor_mut_sd, ymax=cor_mut+cor_mut_sd), fill = "lightgrey", alpha = 0.4)+
+  geom_line(aes(x = reorder(Drug, cor_mut), y = cor_mut, group = 1), size = 1.6, alpha = 0.6, color= "grey45") + 
+  geom_point(aes(x = reorder(Drug, cor_mut),y = cor_emt, color = TCGA), alpha = 0.6) +
+  geom_text_repel(aes(x = reorder(Drug, cor_mut), y = cor_emt, label = label), color = "black",nudge_x = -4,nudge_y = 1, size = 4) +
+  xlab("351 Drugs") + ylab("Correlation predicted vs. observed IC50") + theme_classic() +
+  theme(axis.text.x = element_blank(), legend.position = "none")+
+        #axis.line.x = element_line(arrow = arrow(angle = 20, length = unit(0.1, "inches"))),
+        #axis.title = element_text(size = 10), plot.title = element_text(size=22)) + 
+  scale_color_manual(values = c("darkgreen","darkgreen"), name = "sign. in linear model") + 
+  scale_y_continuous(breaks = c(- 0.5, -0.25, 0, 0.25, 0.5, 0.75, 1), limits = c(-0.7, 1.05)) 
+#+ ggtitle("Melanoma cell lines")
+```
+
+```{r Fig1_d, fig.width= 5, fig.height=5, include=FALSE}
+GDSC_dr_wide2 <- full_join(resp, EMTscores)
+ggplot(GDSC_dr_wide2[GDSC_dr_wide2$`TCGA Desc` == "SKCM",], aes(x=EMT_score, y = `1559-GDSC2`)) + 
+  stat_smooth(method = "lm", color = "grey45", fill = "grey65", size=3) + geom_point(size = 4) +
+  xlab("EMT score") + ylab("log10(IC50 [µM])") + ggtitle("Luminespib in SKCM") +
+  theme_classic() + theme(plot.title = element_text(size = 20), 
+                          axis.title = element_text(size = 20),
+                          axis.text = element_text(size = 15),
+                          legend.position = "none") +
+  annotate(geom = "text", cex = 10,x = 0.45, y = 2.5, label = paste("Pearson's r = ", round(cor.test(GDSC_dr_wide2$EMT_score[GDSC_dr_wide2$`TCGA Desc` == "SKCM"], GDSC_dr_wide2$`1559-GDSC2`[GDSC_dr_wide2$`TCGA Desc` == "SKCM"])$estimate, digits = 2))) #+
+```
+
+```{r Fig1_d_e, fig.width= 2, fig.height=2}
+#luminespib
+model_eval_sum <- merge(model_base_luminespib, model_emt_luminespib, by = c("truth"), all = TRUE)
+ggplot(model_eval_sum) + 
+  stat_smooth(aes(x = exp(truth), y = exp(preds_mean_baseline)), color = "gray45", fill = NA,
+              method = "lm") + 
+  geom_point(aes(x = exp(truth), y = exp(preds_mean_baseline)), color = "gray45") +
+  stat_smooth(aes(x = exp(truth), y = exp(preds_mean_emt)), color = "darkgreen", fill = NA,
+              method = "lm") +
+  geom_point(aes(x = exp(truth), y = exp(preds_mean_emt)), color = "darkgreen") + 
+  theme_classic() + xlab("observed IC50 [µM]") + ylab("predicted IC50 [µM]") + ggtitle("Luminespib") +
+  #theme(plot.title = element_text(size = 36),
+  #      axis.title = element_text(size = 34),
+  #      axis.text = element_text(size = 15)) +
+  annotate(geom = "text", x = exp(-4), y = exp(0), color = "gray50",hjust = 0,
+           label = paste("r =", round(cor.test(model_eval_sum$truth,
+                                                        model_eval_sum$preds_mean_baseline)$estimate, digits = 2))) +
+  annotate(geom = "text", x = exp(-4), y = exp(-0.5), color = "darkgreen", hjust = 0,
+           label = paste("r =", round(cor.test(model_eval_sum$truth, 
+                                                        model_eval_sum$preds_mean_emt)$estimate, digits = 2)))+
+ scale_x_log10(
+   breaks = scales::breaks_log(n = 5),
+   labels = scales::trans_format("log10", scales::math_format(10^.x))
+ ) +
+ scale_y_log10(
+   breaks = scales::breaks_log(n = 4),
+   labels = scales::trans_format("log10", scales::math_format(10^.x))
+ )+
+  annotation_logticks()
+ 
+
+#Nutlin-3a
+predicted_ic50s2_sum <- merge(model_base_nutlin3a, model_emt_nutlin3a, by = c("COSMIC ID","truth"), all = TRUE)
+ggplot(predicted_ic50s2_sum) + 
+  stat_smooth(aes(x = exp(truth), y = exp(preds_mean_baseline)), color = "gray45", fill = NA, # 10**IC50.1_Nutlin_3a.1047.GDSC1
+              method = "lm") + 
+  geom_point(aes(x = exp(truth), y = exp(preds_mean_baseline)), color = "gray45") +
+  stat_smooth(aes(x = exp(truth), y = exp(preds_mean_emt)), color = "darkgreen", fill = NA,
+              method = "lm") +
+  geom_point(aes(x = exp(truth), y = exp(preds_mean_emt)), color = "darkgreen") + 
+  theme_classic() + xlab("observed IC50 [µM]") + ylab("predicted IC50 [µM]") + ggtitle("Nutlin-3a") +
+  #theme(plot.title = element_text(size = 36),
+  #      axis.title = element_text(size = 34),
+  #      axis.text = element_text(size = 15)) +
+  annotate(geom = "text", x = exp(0.8), y = exp(4.2), color = "gray45",hjust = 0,
+           label = paste("r =", round(cor.test(predicted_ic50s2_sum$truth, 
+                                                        predicted_ic50s2_sum$preds_mean_baseline)$estimate, digits = 2))) +
+  annotate(geom = "text", x = exp(0.8), y = exp(3.7), color = "darkgreen", hjust = 0,
+           label = paste("r =", round(cor.test(predicted_ic50s2_sum$truth, 
+                                                        predicted_ic50s2_sum$preds_mean_emt)$estimate, digits = 2))) +
+   scale_x_log10(
+   breaks = scales::breaks_log(n = 4),
+   labels = scales::trans_format("log10", scales::math_format(10^.x))
+ ) +
+ scale_y_log10(
+   breaks = scales::breaks_log(n = 4),
+   labels = scales::trans_format("log10", scales::math_format(10^.x))
+   )+
+  annotation_logticks()
+```
+
+```{r Fig2_a, fig.width= 2, fig.height=2}
+data <- GDSC_dr_wide2[GDSC_dr_wide2$`TCGA Desc` == "SKCM",]
+cortest <- cor.test(data$EMT_score, data$`328-GDSC1`) #IC50.1_SNX_2112.328.GDSC1
+ggplot(GDSC_dr_wide2[GDSC_dr_wide2$`TCGA Desc` == "SKCM",], aes(x=EMT_score, y = exp(`328-GDSC1`))) + 
+  stat_smooth(method = "lm", color = "gray50", fill = "gray65") + geom_point() +
+  xlab("EMT score") + ylab("IC50 [µM]") + ggtitle("SNX 2112", subtitle = "") +
+  theme_classic()+ #+ theme(plot.title = element_text(size = 20), 
+                  #        plot.subtitle = element_text(size = 18, face = "italic"),
+                  #        axis.title = element_text(size = 20),
+                  #        axis.text = element_text(size = 15),
+                  #        legend.position = "none") 
+ scale_y_log10(
+   breaks = scales::trans_breaks("log10", function(x) 10^x),
+   labels = scales::trans_format("log10", scales::math_format(10^.x)), 
+   limits = c(0.01, 100)
+   )+
+  annotate("text", label = paste0("r = ",as.numeric(round(cortest$estimate, 2)),"\n","p = ",round(cortest$p.value, 3)) , 
+           x = min(na.omit(data$EMT_score)), y = 0.02, vjust = 1, hjust = 0)+
+  annotation_logticks()
+```
+
+```{r Fig2_b, fig.width= 2, fig.height=2}
+rs <- read_delim(paste0(path,"metadata/validation/SKCM_rs1800566.txt"), delim = " ") %>%
+    mutate(`COSMIC ID` = as.character(CosmicID))
+exp <- read_csv(paste0(path,"metadata/matrix_exp.csv")) %>% 
+  dplyr::select(c("COSMIC ID","NQO1"))
+exp <- left_join(EMTscores %>% dplyr::filter(`TCGA Desc` == "SKCM"), exp)
+exp <- left_join(exp, resp) %>% 
+  mutate(NQO1_binary = ifelse(NQO1 > mean(na.omit(NQO1)),"high","low"))
+
+data <- exp[exp$NQO1_binary == "high",] # & exp$genotype_CT != "-"
+cortest <- cor.test(data$EMT_score, data$`1026-GDSC1`) #Tanespimycin.1026.GDSC1
+ggplot(data, aes(x=EMT_score, y = exp(data$`1026-GDSC1`))) + 
+  geom_smooth(method = "lm", color = "gray50", fill = "gray65") + geom_point() +
+  xlab("EMT score") + ylab("IC50 [µM]) 17-AAG") + ggtitle("17-AAG response", subtitle = "functional NQO1 expression") +
+  theme_classic() + #+ theme(plot.title = element_text(size = 20),
+                  #        plot.subtitle = element_text(size = 18, face = "italic"),
+                  #        axis.title = element_text(size = 20),
+                  #        axis.text = element_text(size = 15),
+                  #        strip.text = element_text(size = 18),
+                  #        legend.position = "none") 
+   scale_y_log10(
+   breaks = scales::trans_breaks("log10", function(x) 10^x),
+   labels = scales::trans_format("log10", scales::math_format(10^.x)),
+   limits = c(0.001, 10)
+   )+
+  annotate("text", label = paste0("r = ",as.numeric(round(cortest$estimate, 2)),"\n","p = ",round(cortest$p.value, 3)) , 
+           x = min(na.omit(data$EMT_score)), y = 0.002, vjust = 1, hjust = 0)+
+  annotation_logticks()
+
+```
+
+```{r Fig2_c_CCLE, fig.width= 2, fig.height=2}
+#CCLE
+ccle_skcm_dr <- readRDS(paste0("/home/rstudio/old/EMT_paper_figures/","data_frames/CCLE_skcm_df.Rdata"))
+cortest <- cor.test(ccle_skcm_dr$EMT_score, ccle_skcm_dr$AT13387_688229)
+ggplot(ccle_skcm_dr, aes(x=EMT_score, y=10**AT13387_688229)) + 
+  stat_smooth(method = "lm", color = "gray50", fill = "gray65") + geom_point() + xlab("EMTscore") + ylab("EC50") + 
+  ggtitle("AT13387 (onalespib) in CCLE")+ theme_classic()+
+  xlab("EMT score") + ylab("log10(EC50 [µM])") +
+  #theme(plot.title = element_text(size = 20), 
+  #                                                                axis.title = element_text(size = 20),
+  #                                                                axis.text = element_text(size = 15),
+  #                                                                legend.position = "none") 
+   scale_y_log10(
+   breaks = scales::trans_breaks("log10", function(x) 10^x),
+   labels = scales::trans_format("log10", scales::math_format(10^.x)),
+   limits = c(0.000001, 100000)
+   )+
+  annotate("text", label = paste0("r = ",as.numeric(round(cortest$estimate, 2)),"\n","p = ",round(cortest$p.value, 3)) , 
+           x = max(ccle_skcm_dr$EMT_score[!is.na(ccle_skcm_dr$AT13387_688229)]), y = 0.000001, vjust = 0, hjust = 1)
+```
+
+```{r Fig2_j, fig.width= 2.6, fig.height=5.4}
+
+
+
+colors_genes_here <- colors_genes
+colors_genes_here[names(colors_genes) %in% c("CDH1","CDH2")] <- "darkgreen"
+colors_genes_here[colors_genes %in% c("deepskyblue")] <- "darkorange"
+colors_genes_here[colors_genes %in% c("darkorange")] <- "navyblue"
+
+hm_df <- t(skcm_hm_df[,8:(ncol(skcm_hm_df)-1)]) - rowMeans(t(skcm_hm_df[,8:(ncol(skcm_hm_df)-1)]))
+logical <- row.names(hm_df) %in% (names(colors_genes_here)[colors_genes_here != "black"]) # rep(T,nrow(hm_df))
+hm_df <- hm_df[logical,]
+colors_genes_df <- colors_genes_here[logical]
+
+col_fun = colorRamp2(c(-4, 0, 4), viridis(3))
+an <- HeatmapAnnotation(response = skcm_hm_df$IC50.2_Luminespib.1559.GDSC2, EMT = skcm_hm_df$EMT_by_cancer,
+                        col = list(response = colorRamp2(range(skcm_hm_df$IC50.2_Luminespib.1559.GDSC2), c("grey20", "grey80")),
+                                   EMT = colorRamp2(range(skcm_hm_df$EMT_by_cancer), c("navyblue","orange"))),
+                        annotation_legend_param = list(EMT = list(at = c(1, -4), labels = c("epithelial", "mesenchymal"))))
+draw(Heatmap(hm_df, top_annotation = an, name = "expression", col = col_fun,
+             row_names_gp = gpar(fontsize = 4, col = colors_genes_df), 
+             column_names_gp = gpar(fontsize = 4),
+             km = 3, 
+             show_column_names = TRUE,
+             show_row_dend = F, 
+             row_title = NULL), 
+     merge_legend = TRUE, heatmap_legend_side = "bottom", 
+     annotation_legend_side = "bottom")
+```
+
+
+Biological validation
+
+```{r Fig3a, fig.height=2.6, fig.width=2.5}
+data <- full_join(resp, EMTscores) %>% dplyr::filter(`TCGA Desc` == "SKCM")
+data$order_cl <- "" # put here what cells to highlight
+ggplot(data, aes(x=EMT_score, y = exp(`1559-GDSC2`), color = EMT_score)) + 
+     stat_smooth(method = "lm", color = "gray50", fill = "gray65")+
+     geom_point() +
+     xlab("EMT score") + ylab("IC50 [µM]") + ggtitle("Luminespib in melanoma (GDSC)") +
+     geom_text_repel(data = data %>% dplyr::filter(EMT_score>0), aes(label = order_cl), min.segment.length = 0.1, box.padding = 0, force =1, nudge_x = -0.5,nudge_y =1.7, hjust = 0 , color = "black") +
+     geom_text_repel(data = data %>% dplyr::filter(EMT_score<0), aes(label = order_cl), min.segment.length = 0.1, box.padding = 0, force =1, nudge_x = -2,nudge_y = -1.3, hjust = 1, color = "black") +
+     theme_classic() + theme(#plot.title = element_text(size = 20), 
+         #        axis.title = element_text(size = 20),
+         #        axis.text = element_text(size = 15),
+         legend.position = "none") +
+     scale_color_gradient(high = "navyblue", low = "orange", name = "EMT score")+
+     scale_y_log10(
+         breaks = scales::trans_breaks("log10", function(x) 10^x),
+         labels = scales::trans_format("log10", scales::math_format(10^.x)),
+         limits = c(0.008,20)
+     )+
+  annotation_logticks()
+```
+
+
+## Figure 4
+
+Generalizability to other cancer types
+
+```{r Fig4_a, fig.height=1.5, fig.width=3.5}
+ggplot(EMTscores[EMTscores$`TCGA Desc` %in% c("BRCA", "COREAD", "OV", "SKCM","LUAD","HNSC"),], 
+       aes( x = EMT_score, color = `TCGA Desc`, fill = `TCGA Desc`)) +  
+  xlab("EMT score") + ylab("density") + ggtitle("EMT scores across cancer types") +
+  geom_density(alpha = 0.6) + theme_classic()+# theme(plot.title = element_text(size = 20),
+                                              #                 axis.title = element_text(size = 15),
+                                              #                 axis.text.x = element_text(size = 10)) + 
+  scale_fill_brewer(name = "cancer type",palette="Pastel1") + scale_color_brewer(name = "cancer type",palette="Pastel1")
+```
+
+```{r Fig4_b, fig.height=2, fig.width=5}
+count_EMTgenes <- do.call(rbind,lapply(1:length(EMT_gs), function(x) data.frame(gene = EMT_gs[[x]],state = names(EMT_gs[[x]])))) %>% table %>% as.data.frame
+ggplot(count_EMTgenes[count_EMTgenes$Freq > 5,], aes(x = (Freq/length(EMT_gs))*100, y = reorder(gene, Freq, decreasing = T))) + geom_col(aes(fill = state), alpha = 0.6, width = 0.3) +
+  theme_classic() + xlab("amount of\ncancer types (%)") +  ylab("")+
+  scale_fill_manual(values = c("darkorange", "navyblue"))+
+  theme(legend.position = "none",
+        #axis.text.y = element_text(size = 12),
+        #axis.title.y = element_text(size = 15),
+        axis.text.x = element_text(angle = 45, hjust = 1,
+                                   color = "black")) + coord_flip()
+```
+
+
+```{r Fig4_c, fig.height=2, fig.width=5}
+# pool all performances
+cancertypes <- EMTscores$`TCGA Desc` %>% table %>% names
+performances <- list()
+for(which in c("PANCAN",cancertypes)){
+performances[[which]] <- readRDS(paste0(path,"metadata/run2/results/",which,"_performances_v2.rds")) %>%
+  dplyr::filter(fraction_extrapolated < 0.7 & !is.na(pvalue)) # filter NAs and extrapolated
+}; performances <- do.call(rbind, performances)
+
+#use new performances
+d <- performances %>%
+  mutate(Drug = `Drug Name`) %>%
+  #group_by(TCGA) %>%
+  mutate(pvalue_adj = p.adjust(pvalue, method = "BH"))
+sort(d$pvalue_adj) %>% head  
+
+# filter
+#d <- d[d$Drug %in% drugs_sum$d,]
+fdr_threshold <- 0.6
+h0 <- sort(unlist(na.omit(d[,"pvalue"])))[max(which(sort(unlist(na.omit(d[,"pvalue_adj"])))<fdr_threshold))]
+ggplot(data = d)+
+  geom_point(data = d[(d$TCGA %in% c("BRCA", "COREAD", "OV", "SKCM","LUAD","HNSC")),], aes(x = cor_emt-cor_mut, y = -log10(pvalue), color = TCGA), alpha = 0.9)+
+  geom_point(data = d[!(d$TCGA %in% c("BRCA", "COREAD", "OV", "SKCM","LUAD","HNSC","PANCAN") & (d$pvalue_adj < fdr_threshold)),], aes(x = cor_emt-cor_mut, y = -log10(pvalue)), color = "grey", alpha = 0.9)+
+  geom_point(data = d[(d$TCGA %in% c("BRCA", "COREAD", "OV", "SKCM","LUAD","HNSC") & (d$pvalue_adj < fdr_threshold)),], aes(x = cor_emt-cor_mut, y = -log10(pvalue), color = TCGA), alpha = 0.9)+
+    #geom_point(data = d[(d$TCGA %in% c("PANCAN")),], aes(x = cor_emt-cor_mut, y = -log10(pvalue), color = "black"), alpha = 0.8)+
+#  geom_point(data = d[!(d$TCGA %in% c("PANCAN") & (d$pvalue_adj < fdr_threshold)),], aes(x = cor_emt-cor_mut, y = -log10(pvalue)), color = "grey", alpha = 0.8)+
+  geom_point(data = d[(d$TCGA %in% c("PANCAN") & (d$pvalue_adj < fdr_threshold)),], aes(x = cor_emt-cor_mut, y = -log10(pvalue)), color = "black", alpha = 0.8)+
+  geom_text_repel(data = d[ d$TCGA %in% c("BRCA", "COREAD", "OV", "SKCM","LUAD","HNSC") & (d$pvalue_adj < fdr_threshold),], #  (d$Drug %in% c("Luminespib","BX795","Teniposide")) &
+                  aes(x = cor_emt-cor_mut, y = -log10(pvalue), label = Drug), color = "black", size = 4, show_guide = F, min.segment.length = 0.02)+
+  geom_text_repel(data = d[ d$TCGA %in% c("PANCAN") & (d$pvalue_adj < fdr_threshold),], #  (d$Drug %in% c("Luminespib","BX795","Teniposide")) &
+                  aes(x = cor_emt-cor_mut, y = -log10(pvalue), label = Drug), color = "black", size = 4, show_guide = F, min.segment.length = 0.02)+
+  theme_classic()+
+  xlab("Difference in Pearson r for EMT model vs baseline model")+
+  ylab("-log10(p)")+
+  labs(color="Cancer type")+
+  xlim(c(0,0.7))+
+  ylim(c(0,4))+
+  geom_hline(yintercept=-log10(h0), linetype='dotted', color = "grey66", size = 0.3)+
+  annotate("text", x = 0.6, y = -log10(h0), label = paste0("FDR<",as.character(round(fdr_threshold*100)),"%"), hjust = 0, vjust = 0)+
+  scale_color_brewer(palette="Pastel1")
+#d <- melt(bfs %>% rownames_to_column("type"))
+#ggplot(data = d)+
+#  geom_point(data = d[!(d$type %in% c("BRCA", "COREAD", "OV", "SKCM")),], aes(x = value, y = value), color = "grey")+
+#  geom_point(data = d[d$type %in% c("BRCA", "COREAD", "OV", "SKCM"),], aes(x = value, y = value, color = type))+
+#  geom_text_repel(data = d[d$type %in% c("BRCA", "COREAD", "OV", "SKCM") & (d$variable %in% c("Luminespib","BX795","Teniposide")) & (d$value >10),],
+#                  aes(x = value, y = value, label = variable, color = type),nudge_x = 3,nudge_y = 1, size = 4, show_guide = F)+
+#  theme_classic()+
+#  xlab("bayes factor")+
+#  ylab("bayes factor")
+  
+#hm <- Heatmap(bfs, name = "Bayes Factor", cluster_rows = F, cluster_columns = F,
+#        col = colorRamp2(breaks = c(10,3,0), colors = c("red4", "white", "lightgrey")), na_col = "gray50",
+#        heatmap_legend_param = list(direction = "horizontal"), column_names_rot = 45)
+#draw(hm, heatmap_legend_side = "bottom")
+```
+
+```{r othertypes, fig.height=2.5, fig.width=2.5}
+###BRCA BX795
+cortest <- cor.test(GDSC_dr_wide2$EMT_by_cancer[GDSC_dr_wide2$TCGA == "BRCA"], GDSC_dr_wide2$IC50.1_BX795.1037.GDSC1[GDSC_dr_wide2$TCGA == "BRCA"])
+ggplot(GDSC_dr_wide2[GDSC_dr_wide2$TCGA == "BRCA",], aes(x=EMT_by_cancer, y = 10**IC50.1_BX795.1037.GDSC1), color = "black") + 
+  stat_smooth(method = "lm", color = "gray50", fill = "gray65", size=3) + geom_point(size = 4) +
+  xlab("EMT score") + ylab("IC50") + ggtitle("BX795 in breast cancer") +
+  theme_classic() + #theme(plot.title = element_text(size = 20), 
+                    #      axis.title = element_text(size = 20),
+                    #      axis.text = element_text(size = 15),
+                    #      legend.position = "none") +
+  #scale_color_steps(low = "navyblue", high = "darkorange", name = "EMT score", limits = c(range(GDSC_dr_wide2$EMT_by_cancer)[1], range(GDSC_dr_wide2$EMT_by_cancer)[2]))+
+     scale_y_log10(
+   breaks = scales::trans_breaks("log10", function(x) 10^x),
+   labels = scales::trans_format("log10", scales::math_format(10^.x)),
+   limits = c(0.7,142646)
+   )+
+  annotate("text", label = paste0("p = ",round(cortest$p.value, 3)) , 
+           x = max((GDSC_dr_wide2[GDSC_dr_wide2$TCGA == "BRCA",])$EMT_by_cancer), y = 0.7, vjust = 0, hjust = 1)
+
+
+
+
+#  annotate(geom = "text", x = -2.5, y = 0, label = paste("Pearson's R:", #round(cor.test(GDSC_dr_wide2$EMT_by_cancer[GDSC_dr_wide2$TCGA == "BRCA"], #GDSC_dr_wide2$IC50.1_BX795.1037.GDSC1[GDSC_dr_wide2$TCGA == "BRCA"])$estimate, digits = 3)))
+
+###OV Teniposide
+cortest <- cor.test(GDSC_dr_wide2$EMT_by_cancer[GDSC_dr_wide2$TCGA == "OV"], GDSC_dr_wide2$IC50.2_Teniposide.1809.GDSC2[GDSC_dr_wide2$TCGA == "OV"])
+ggplot(GDSC_dr_wide2[GDSC_dr_wide2$TCGA == "OV",], aes(x=EMT_by_cancer, y = 10**IC50.2_Teniposide.1809.GDSC2), color = "black") + #color = EMT_by_cancer
+  stat_smooth(method = "lm", color = "gray50", fill = "gray65", size=3) + geom_point(size = 4) +
+  xlab("EMT score") + ylab("IC50") + ggtitle("Teniposide in ovarian cancer") +
+  theme_classic() + #theme(plot.title = element_text(size = 20), 
+                    #      axis.title = element_text(size = 20),
+                    #      axis.text = element_text(size = 15),
+                    #      legend.position = "none") +
+  #scale_color_steps(low = "navyblue", high = "darkorange", name = "EMT score", limits = c(range(GDSC_dr_wide2$EMT_by_cancer)[1], range(GDSC_dr_wide2$EMT_by_cancer)[2])) +
+     scale_y_log10(
+   breaks = scales::trans_breaks("log10", function(x) 10^x),
+   labels = scales::trans_format("log10", scales::math_format(10^.x)),
+   limits = c(0.01,25468)
+   )+
+  annotate("text", label = paste0("p = ",round(cortest$p.value, 3)) , 
+           x = max((GDSC_dr_wide2[GDSC_dr_wide2$TCGA == "OV",])$EMT_by_cancer), y = 0.01, vjust = 0, hjust = 1)
+
+
+#+
+#  annotate(geom = "text", x = 1.1, y = -1, label = paste("Pearson's R:", #round(cor.test(GDSC_dr_wide2$EMT_by_cancer[GDSC_dr_wide2$TCGA == "OV"], #GDSC_dr_wide2$IC50.2_Teniposide.1809.GDSC2[GDSC_dr_wide2$TCGA == "OV"])$estimate, digits = 3)))
+
+
+
+###LUAD ROCK inhibtior
+cortest <- cor.test(GDSC_dr_wide2$EMT_by_cancer[GDSC_dr_wide2$TCGA == "LUAD"], GDSC_dr_wide2$IC50.1_GSK269962A.1192.GDSC1[GDSC_dr_wide2$TCGA == "LUAD"])
+ggplot(GDSC_dr_wide2[GDSC_dr_wide2$TCGA == "LUAD",], aes(x=EMT_by_cancer, y = 10**IC50.1_GSK269962A.1192.GDSC1), color = "black") + 
+    stat_smooth(method = "lm", color = "gray50", fill = "gray65", size=3) + geom_point(size = 4) +
+    xlab("EMT score") + ylab("IC50") + ggtitle("ROCK inhibitor in LUAD") +
+    theme_classic() + #theme(plot.title = element_text(size = 20), 
+    #      axis.title = element_text(size = 20),
+    #      axis.text = element_text(size = 15),
+    #      legend.position = "none") +
+    #scale_color_steps(low = "navyblue", high = "darkorange", name = "EMT score", limits = c(range(GDSC_dr_wide2$EMT_by_cancer)[1], range(GDSC_dr_wide2$EMT_by_cancer)[2]))+
+    scale_y_log10(
+        breaks = scales::trans_breaks("log10", function(x) 10^x),
+        labels = scales::trans_format("log10", scales::math_format(10^.x)),
+        limits = c(0.7,42500)
+    )+
+    annotate("text", label = paste0("p = ",round(cortest$p.value, 6)) , 
+             x = max((GDSC_dr_wide2[GDSC_dr_wide2$TCGA == "LUAD",])$EMT_by_cancer), y = 0.7, vjust = 0, hjust = 1)
+```
+

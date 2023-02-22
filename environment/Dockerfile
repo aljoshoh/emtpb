@@ -92,9 +92,11 @@ RUN install2.r --error \
 	--deps TRUE \
 	shades \
         ggrepel \
-        ggpubr
+        ggpubr \
+        msigdbr
 
 RUN R -e "BiocManager::install('mlr3')"	
+RUN R -e "BiocManager::install(c('GSVA','IHW'))"
 
 # show list of all installed packages
 RUN R -e "sort(unname(installed.packages()[, 'Package']))"
