@@ -4,9 +4,11 @@ library(dplyr)
 library(tidyr)
 library(tibble)
 
-EMTscores <- read_csv("metadata/EMTscores.csv")
-cancertypes <- unique(c('PANCAN', unlist(EMTscores['TCGA Desc'])))
+which_score <- "gsva" # "" 
 run <- "run2"
+
+EMTscores <- read_csv(paste0("metadata/EMTscores",which_score,".csv"))
+cancertypes <- unique(c('PANCAN', unlist(EMTscores['TCGA Desc'])))
 resp = read_csv("metadata/matrix_resp.csv") %>% dplyr::select(-c("COSMIC ID","TCGA Desc"))
 df <- tibble(drug = character(length = ncol(resp)),
              values_na = lapply(1:ncol(resp), list),

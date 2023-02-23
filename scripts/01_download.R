@@ -91,10 +91,10 @@ matrix_exp <- tmp %>%
   rownames_to_column("COSMIC ID") %>% 
   as_tibble() %>% 
   mutate(`COSMIC ID` = gsub("DATA.", "", `COSMIC ID`))
-
-# add EMT score
 matrix_exp <- full_join(matrix_mut_pancan[,c("COSMIC ID","TCGA Desc")], matrix_exp)
 
+
+# add EMT score (1: marisa) ####################
 EMTscores <- data.frame(`COSMIC ID`=character(), `TCGA Desc`=character(), EMT_score=numeric())
 EMT_gs <- list()
 tcga_used <- c()
@@ -110,11 +110,46 @@ for(tcga in 1:length(cancertypes)){
   EMT_gs[[tcga]] <- EMT_output$EMT_genes
 }
 names(EMT_gs) <- cancertypes
-
-
-# save
 saveRDS(EMT_gs, file = "metadata/EMT_gs.rds")
 write_csv(EMTscores, file = "metadata/EMTscores.csv")
+##############################################
+
+
+# add EMT score (2: GSVA) ####################
+library(msigdbr)
+library(GSVA)
+EMTscores <- data.frame(`COSMIC ID`=character(), `TCGA Desc`=character(), EMT_score=numeric())
+EMT_gs <- list()
+tcga_used <- c()
+cancertypes <- cancertypes[cancertypes %in% names(which(table(matrix_exp$`TCGA Desc`) > 5))] # cancer types with more than 5 samples
+
+for(tcga in 1:length(cancertypes)){
+  print(tcga)
+  if(cancertypes[tcga] != "UNCLASSIFIED" & !is.na(cancertypes[tcga])){
+    curr_tcga <- cancertypes[tcga]} else{next}
+  tcga_used[length(tcga_used) + 1] <- curr_tcga
+  gex_tmp <- as.data.frame(matrix_exp[matrix_exp$`TCGA Desc` == curr_tcga &!is.na(matrix_exp$`TCGA Desc`),])
+  
+  Hallmark_genesets <- msigdbr(species = "Homo sapiens", category = "H") %>% 
+    dplyr::select(gs_name, gene_symbol)
+  hallmarks_list <- unlist(split(Hallmark_genesets, f = Hallmark_genesets$gs_name), recursive = F)
+  gsva_hallmarks <- as.data.frame(gsva(t(as.matrix(gex_tmp %>% dplyr::select(-c("TCGA Desc")) %>% column_to_rownames("COSMIC ID"))%>%na.omit), hallmarks_list, verbose=FALSE))
+  EMT_output <- as.data.frame(t(gsva_hallmarks))[,"HALLMARK_EPITHELIAL_MESENCHYMAL_TRANSITION.gene_symbol",drop = F]
+  EMT_output <- EMT_output %>%
+    mutate(`TCGA Desc` = curr_tcga) %>%
+    mutate(EMT_score = HALLMARK_EPITHELIAL_MESENCHYMAL_TRANSITION.gene_symbol) %>%
+    rownames_to_column("COSMIC ID") %>% 
+    dplyr::select(-c(HALLMARK_EPITHELIAL_MESENCHYMAL_TRANSITION.gene_symbol))
+
+  EMTscores <- rbind(EMTscores, EMT_output)
+  EMT_gs[[tcga]] <- hallmarks_list$HALLMARK_EPITHELIAL_MESENCHYMAL_TRANSITION.gene_symbol
+}
+names(EMT_gs) <- cancertypes
+saveRDS(EMT_gs, file = "metadata/EMT_gs_gsva.rds")
+write_csv(EMTscores, file = "metadata/EMTscores_gsva.csv")
+##############################################
+
+# save
 write_csv(matrix_exp, file = "metadata/matrix_exp.csv")
 write_csv(matrix_mut_pancan, file = "metadata/matrix_mut_PANCAN.csv")
 write_csv(matrix_resp, file = "metadata/matrix_resp.csv")
@@ -126,3 +161,6 @@ for(cancertype in cancertypes){
 #
 #
 #
+
+
+
