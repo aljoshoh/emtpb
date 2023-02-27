@@ -1,5 +1,6 @@
 setwd('emtpb/')
 library(readr)
+library(readxl)
 library(dplyr)
 library(tidyr)
 library(tibble)
@@ -148,6 +149,33 @@ names(EMT_gs) <- cancertypes
 saveRDS(EMT_gs, file = "metadata/EMT_gs_gsva.rds")
 write_csv(EMTscores, file = "metadata/EMTscores_gsva.csv")
 ##############################################
+
+
+# add EMT score (2: secrier) ####################
+if(F){
+  emtpb_download(path = "data/secrier_supplementary_tables.xlsx",
+                 url = 'https://static-content.springer.com/esm/art%3A10.1038%2Fs41467-023-36439-7/MediaObjects/41467_2023_36439_MOESM8_ESM.xlsx',
+                 unzp = F)
+  #emtpb_download(path = "data/Model.csv",
+  #               url = 'https://s3-eu-west-1.amazonaws.com/pfigshare-u-files/38466923/Model.csv?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAIYCQYOYV5JSSROOA/20230227/eu-west-1/s3/aws4_request&X-Amz-Date=20230227T153029Z&X-Amz-Expires=10&X-Amz-SignedHeaders=host&X-Amz-Signature=fbccd46f6f002d8246596cc74cdc35c70e8337b0baf4d4c3d27209f2f209765a',
+  #               unzp = F)
+  anno <- read_csv("data/Model.csv") %>% mutate(CellLine = ModelID)
+  scores <- read_excel("data/secrier_supplementary_tables.xlsx", sheet = 5)
+  scores <- left_join(scores, anno) %>% mutate(`COSMIC ID` = as.character(COSMICID))
+  scores <- left_join(scores, matrix_exp[,c("COSMIC ID","TCGA Desc")])
+  
+  EMTscores <- data.frame(`COSMIC ID`=scores$`COSMIC ID`, `TCGA Desc`=scores$`TCGA Desc`, EMT_score=scores$emt_score)
+  colnames(EMTscores) = c("COSMIC ID","TCGA Desc","EMT_score")
+  #EMT_gs <- list()
+  #cancertypes <- cancertypes[cancertypes %in% names(which(table(matrix_exp$`TCGA Desc`) > 5))] # cancer types with more than 5 samples
+  
+  
+  #names(EMT_gs) <- cancertypes
+  #saveRDS(EMT_gs, file = "metadata/EMT_gs_gsva.rds")
+  write_csv(EMTscores, file = "metadata/EMTscores_secrier.csv")
+}
+##############################################
+
 
 # save
 write_csv(matrix_exp, file = "metadata/matrix_exp.csv")

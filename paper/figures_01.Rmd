@@ -1,16 +1,21 @@
 ---
-title: "Manuscript figures"
+title: "emtpb manuscript figures"
 author: "Alexander Ohnmacht and Marisa Schübel"
 date: "17/02/2023"
 output:
- html_document:
+  pdf_document: 
     toc: true
     fig_caption: true
     number_sections: true
-    fig_width: 7
-    fig_height: 6
+    fig_width: 12
+    fig_height: 12
+  html_document:
+    toc: true
+    fig_caption: true
+    number_sections: true
+    fig_width: 12
+    fig_height: 12
 ---
-
 
 ```{r set, include=FALSE}
 knitr::opts_chunk$set(xtable.comment = FALSE, 
@@ -57,10 +62,19 @@ performances_SKCM$Drug <- performances_SKCM$drug
 performances_SKCM$label[performances_SKCM$drug == "1559-GDSC2"] <- "Luminespib"
 performances_SKCM$label[performances_SKCM$drugname == "Nutlin-3a (-)"] <- "Nutlin 3a"
 
+# Import benchmarks for SKCM (GSVA)
+performances_SKCM_gsva <- readRDS(paste0(path,"/metadata/run3/results/SKCM_performances_v2.rds")) %>%
+  dplyr::filter(fraction_extrapolated < 0.7 & !is.na(pvalue)) # filter NAs and extrapolated
+performances_SKCM_gsva$Drug <- performances_SKCM$drug
+performances_SKCM_gsva$label[performances_SKCM_gsva$drug == "1559-GDSC2"] <- "Luminespib"
+performances_SKCM_gsva$label[performances_SKCM_gsva$drugname == "Nutlin-3a (-)"] <- "Nutlin 3a"
+
 # Import resp (drug data) and EMTscores
 EMTscores <- read_csv(paste0(path,"metadata/EMTscores.csv"))
 EMTscores$EMT_score <- -EMTscores$EMT_score
 resp = read_csv(paste0(path,"metadata/matrix_resp.csv")) #%>% dplyr::select(-c("COSMIC ID","TCGA Desc"))
+
+EMTscores_gsva <- read_csv(paste0(path,"metadata/EMTscores_gsva.csv"))
 
 # Import predictions from luminespib in SKCM
 which <- which(colnames(resp) == "1559-GDSC2")-2
@@ -123,8 +137,25 @@ ggplot(performances_SKCM[order(performances_SKCM$cor_mut),]) +
         #axis.line.x = element_line(arrow = arrow(angle = 20, length = unit(0.1, "inches"))),
         #axis.title = element_text(size = 10), plot.title = element_text(size=22)) + 
   scale_color_manual(values = c("darkgreen","darkgreen"), name = "sign. in linear model") + 
-  scale_y_continuous(breaks = c(- 0.5, -0.25, 0, 0.25, 0.5, 0.75, 1), limits = c(-0.7, 1.05)) 
-#+ ggtitle("Melanoma cell lines")
+  scale_y_continuous(breaks = c(- 0.5, -0.25, 0, 0.25, 0.5, 0.75, 1), limits = c(-0.7, 1.05)) +
+  ggtitle("Melanoma hits (Mak et al.)")
+```
+
+```{r Fig1_c_gsva, fig.width= 3, fig.height=2}
+ggplot(performances_SKCM_gsva[order(performances_SKCM_gsva$cor_mut),]) + 
+  geom_errorbar(aes(x = reorder(Drug, cor_mut),ymin = cor_emt-abs(cor_emt_sd), ymax=cor_emt+abs(cor_emt_sd)), color="lightgrey") +
+  geom_line(aes(x = reorder(Drug, cor_mut), y = cor_mut, group = 1)) + 
+  geom_ribbon(aes(x = 1:length(Drug),ymin = cor_mut-cor_mut_sd, ymax=cor_mut+cor_mut_sd), fill = "lightgrey", alpha = 0.4)+
+  geom_line(aes(x = reorder(Drug, cor_mut), y = cor_mut, group = 1), size = 1.6, alpha = 0.6, color= "grey45") + 
+  geom_point(aes(x = reorder(Drug, cor_mut),y = cor_emt, color = TCGA), alpha = 0.6) +
+  geom_text_repel(aes(x = reorder(Drug, cor_mut), y = cor_emt, label = label), color = "black",nudge_x = -4,nudge_y = 1, size = 4) +
+  xlab("351 Drugs") + ylab("Correlation predicted vs. observed IC50") + theme_classic() +
+  theme(axis.text.x = element_blank(), legend.position = "none")+
+        #axis.line.x = element_line(arrow = arrow(angle = 20, length = unit(0.1, "inches"))),
+        #axis.title = element_text(size = 10), plot.title = element_text(size=22)) + 
+  scale_color_manual(values = c("darkgreen","darkgreen"), name = "sign. in linear model") + 
+  scale_y_continuous(breaks = c(- 0.5, -0.25, 0, 0.25, 0.5, 0.75, 1), limits = c(-0.7, 1.05)) +
+  ggtitle("Melanoma hits (GSVA)")
 ```
 
 ```{r Fig1_d, fig.width= 5, fig.height=5, include=FALSE}
@@ -253,7 +284,7 @@ ggplot(data, aes(x=EMT_score, y = exp(data$`1026-GDSC1`))) +
 ```
 
 ```{r Fig2_c_CCLE, fig.width= 2, fig.height=2}
-#CCLE
+#CCLE -> wait for marisa response
 ccle_skcm_dr <- readRDS(paste0("/home/rstudio/old/EMT_paper_figures/","data_frames/CCLE_skcm_df.Rdata"))
 cortest <- cor.test(ccle_skcm_dr$EMT_score, ccle_skcm_dr$AT13387_688229)
 ggplot(ccle_skcm_dr, aes(x=EMT_score, y=10**AT13387_688229)) + 
@@ -275,8 +306,8 @@ ggplot(ccle_skcm_dr, aes(x=EMT_score, y=10**AT13387_688229)) +
 
 ```{r Fig2_j, fig.width= 2.6, fig.height=5.4}
 
-
-
+# HEATMAP -> wait for marisas answer for the correlations
+if(F){
 colors_genes_here <- colors_genes
 colors_genes_here[names(colors_genes) %in% c("CDH1","CDH2")] <- "darkgreen"
 colors_genes_here[colors_genes %in% c("deepskyblue")] <- "darkorange"
@@ -301,6 +332,7 @@ draw(Heatmap(hm_df, top_annotation = an, name = "expression", col = col_fun,
              row_title = NULL), 
      merge_legend = TRUE, heatmap_legend_side = "bottom", 
      annotation_legend_side = "bottom")
+}
 ```
 
 
@@ -368,13 +400,13 @@ performances[[which]] <- readRDS(paste0(path,"metadata/run2/results/",which,"_pe
 #use new performances
 d <- performances %>%
   mutate(Drug = `Drug Name`) %>%
-  #group_by(TCGA) %>%
+  group_by(TCGA) %>%
   mutate(pvalue_adj = p.adjust(pvalue, method = "BH"))
 sort(d$pvalue_adj) %>% head  
 
 # filter
 #d <- d[d$Drug %in% drugs_sum$d,]
-fdr_threshold <- 0.6
+fdr_threshold <- 0.4
 h0 <- sort(unlist(na.omit(d[,"pvalue"])))[max(which(sort(unlist(na.omit(d[,"pvalue_adj"])))<fdr_threshold))]
 ggplot(data = d)+
   geom_point(data = d[(d$TCGA %in% c("BRCA", "COREAD", "OV", "SKCM","LUAD","HNSC")),], aes(x = cor_emt-cor_mut, y = -log10(pvalue), color = TCGA), alpha = 0.9)+
@@ -412,7 +444,72 @@ ggplot(data = d)+
 #draw(hm, heatmap_legend_side = "bottom")
 ```
 
+```{r Fig4_c_gsva, fig.height=2, fig.width=5}
+# pool all performances
+cancertypes <- EMTscores_gsva$`TCGA Desc` %>% table %>% names
+performances <- list()
+for(which in c("PANCAN",cancertypes)){
+performances[[which]] <- readRDS(paste0(path,"metadata/run3/results/",which,"_performances_v2.rds")) %>%
+  dplyr::filter(fraction_extrapolated < 0.7 & !is.na(pvalue)) # filter NAs and extrapolated
+}; performances <- do.call(rbind, performances)
+
+#use new performances
+d <- performances %>%
+  mutate(Drug = `Drug Name`) %>%
+  group_by(TCGA) %>%
+  mutate(pvalue_adj = p.adjust(pvalue, method = "BH"))
+sort(d$pvalue_adj) %>% head  
+
+# filter
+#d <- d[d$Drug %in% drugs_sum$d,]
+fdr_threshold <- 0.4
+h0 <- sort(unlist(na.omit(d[,"pvalue"])))[max(which(sort(unlist(na.omit(d[,"pvalue_adj"])))<fdr_threshold))]
+ggplot(data = d)+
+  geom_point(data = d[(d$TCGA %in% c("BRCA", "COREAD", "OV", "SKCM","LUAD","HNSC")),], aes(x = cor_emt-cor_mut, y = -log10(pvalue), color = TCGA), alpha = 0.9)+
+  geom_point(data = d[!(d$TCGA %in% c("BRCA", "COREAD", "OV", "SKCM","LUAD","HNSC","PANCAN") & (d$pvalue_adj < fdr_threshold)),], aes(x = cor_emt-cor_mut, y = -log10(pvalue)), color = "grey", alpha = 0.9)+
+  geom_point(data = d[(d$TCGA %in% c("BRCA", "COREAD", "OV", "SKCM","LUAD","HNSC") & (d$pvalue_adj < fdr_threshold)),], aes(x = cor_emt-cor_mut, y = -log10(pvalue), color = TCGA), alpha = 0.9)+
+    #geom_point(data = d[(d$TCGA %in% c("PANCAN")),], aes(x = cor_emt-cor_mut, y = -log10(pvalue), color = "black"), alpha = 0.8)+
+#  geom_point(data = d[!(d$TCGA %in% c("PANCAN") & (d$pvalue_adj < fdr_threshold)),], aes(x = cor_emt-cor_mut, y = -log10(pvalue)), color = "grey", alpha = 0.8)+
+  geom_point(data = d[(d$TCGA %in% c("PANCAN") & (d$pvalue_adj < fdr_threshold)),], aes(x = cor_emt-cor_mut, y = -log10(pvalue)), color = "black", alpha = 0.8)+
+  geom_text_repel(data = d[ d$TCGA %in% c("BRCA", "COREAD", "OV", "SKCM","LUAD","HNSC") & (d$pvalue_adj < fdr_threshold),], #  (d$Drug %in% c("Luminespib","BX795","Teniposide")) &
+                  aes(x = cor_emt-cor_mut, y = -log10(pvalue), label = Drug), color = "black", size = 4, show_guide = F, min.segment.length = 0.02)+
+  geom_text_repel(data = d[ d$TCGA %in% c("PANCAN") & (d$pvalue_adj < fdr_threshold),], #  (d$Drug %in% c("Luminespib","BX795","Teniposide")) &
+                  aes(x = cor_emt-cor_mut, y = -log10(pvalue), label = Drug), color = "black", size = 4, show_guide = F, min.segment.length = 0.02)+
+  theme_classic()+
+  xlab("Difference in Pearson r for EMT model vs baseline model")+
+  ylab("-log10(p)")+
+  labs(color="Cancer type")+
+  xlim(c(0,0.7))+
+  ylim(c(0,5))+
+  geom_hline(yintercept=-log10(h0), linetype='dotted', color = "grey66", size = 0.3)+
+  annotate("text", x = 0.6, y = -log10(h0), label = paste0("FDR<",as.character(round(fdr_threshold*100)),"%"), hjust = 0, vjust = 0)+
+  scale_color_brewer(palette="Pastel1")
+```
+
 ```{r othertypes, fig.height=2.5, fig.width=2.5}
+###LUAD ROCK inhibtior
+cortest <- cor.test(GDSC_dr_wide2$EMT_score[GDSC_dr_wide2$`TCGA Desc` == "LUAD"], GDSC_dr_wide2$`1192-GDSC1`[GDSC_dr_wide2$`TCGA Desc` == "LUAD"])
+ggplot(GDSC_dr_wide2[GDSC_dr_wide2$`TCGA Desc` == "LUAD",], aes(x=EMT_score, y = exp(`1192-GDSC1`)), color = "black") + 
+    stat_smooth(method = "lm", color = "gray50", fill = "gray65", size=3) + geom_point(size = 4) +
+    xlab("EMT score") + ylab("IC50 [µM]") + ggtitle("ROCK inhibitor in LUAD") +
+    theme_classic() + #theme(plot.title = element_text(size = 20), 
+    #      axis.title = element_text(size = 20),
+    #      axis.text = element_text(size = 15),
+    #      legend.position = "none") +
+    #scale_color_steps(low = "navyblue", high = "darkorange", name = "EMT score", limits = c(range(GDSC_dr_wide2$EMT_by_cancer)[1], range(GDSC_dr_wide2$EMT_by_cancer)[2]))+
+    scale_y_log10(
+        breaks = scales::trans_breaks("log10", function(x) 10^x),
+        labels = scales::trans_format("log10", scales::math_format(10^.x)),
+        limits = c(0.7,103)
+    )+
+    annotate("text", label = paste0("p = ",round(cortest$p.value, 6)) , 
+min(na.omit((GDSC_dr_wide2[GDSC_dr_wide2$`TCGA Desc` == "LUAD",])$EMT_score)), y = 1.5, vjust =1, hjust = 0)+
+    annotation_logticks()
+
+
+
+
+if(F){
 ###BRCA BX795
 cortest <- cor.test(GDSC_dr_wide2$EMT_by_cancer[GDSC_dr_wide2$TCGA == "BRCA"], GDSC_dr_wide2$IC50.1_BX795.1037.GDSC1[GDSC_dr_wide2$TCGA == "BRCA"])
 ggplot(GDSC_dr_wide2[GDSC_dr_wide2$TCGA == "BRCA",], aes(x=EMT_by_cancer, y = 10**IC50.1_BX795.1037.GDSC1), color = "black") + 
@@ -459,23 +556,6 @@ ggplot(GDSC_dr_wide2[GDSC_dr_wide2$TCGA == "OV",], aes(x=EMT_by_cancer, y = 10**
 #  annotate(geom = "text", x = 1.1, y = -1, label = paste("Pearson's R:", #round(cor.test(GDSC_dr_wide2$EMT_by_cancer[GDSC_dr_wide2$TCGA == "OV"], #GDSC_dr_wide2$IC50.2_Teniposide.1809.GDSC2[GDSC_dr_wide2$TCGA == "OV"])$estimate, digits = 3)))
 
 
-
-###LUAD ROCK inhibtior
-cortest <- cor.test(GDSC_dr_wide2$EMT_by_cancer[GDSC_dr_wide2$TCGA == "LUAD"], GDSC_dr_wide2$IC50.1_GSK269962A.1192.GDSC1[GDSC_dr_wide2$TCGA == "LUAD"])
-ggplot(GDSC_dr_wide2[GDSC_dr_wide2$TCGA == "LUAD",], aes(x=EMT_by_cancer, y = 10**IC50.1_GSK269962A.1192.GDSC1), color = "black") + 
-    stat_smooth(method = "lm", color = "gray50", fill = "gray65", size=3) + geom_point(size = 4) +
-    xlab("EMT score") + ylab("IC50") + ggtitle("ROCK inhibitor in LUAD") +
-    theme_classic() + #theme(plot.title = element_text(size = 20), 
-    #      axis.title = element_text(size = 20),
-    #      axis.text = element_text(size = 15),
-    #      legend.position = "none") +
-    #scale_color_steps(low = "navyblue", high = "darkorange", name = "EMT score", limits = c(range(GDSC_dr_wide2$EMT_by_cancer)[1], range(GDSC_dr_wide2$EMT_by_cancer)[2]))+
-    scale_y_log10(
-        breaks = scales::trans_breaks("log10", function(x) 10^x),
-        labels = scales::trans_format("log10", scales::math_format(10^.x)),
-        limits = c(0.7,42500)
-    )+
-    annotate("text", label = paste0("p = ",round(cortest$p.value, 6)) , 
-             x = max((GDSC_dr_wide2[GDSC_dr_wide2$TCGA == "LUAD",])$EMT_by_cancer), y = 0.7, vjust = 0, hjust = 1)
+}
 ```
 

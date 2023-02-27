@@ -25,7 +25,8 @@ tmp_drugs <- full_join(tmp1, tmp2) %>%
 
 
 cancertypes <- unique(c('PANCAN', unlist(EMTscores['TCGA Desc'])))
-run <- "run2"
+run <- "run3"
+which_score <- "gsva" # "" 
 results_path <- paste0("metadata/",run,"/results")
 dir.create(results_path)
 
@@ -33,7 +34,7 @@ dir.create(results_path)
 #which_run <- 25
 # costum
 
-EMTscores <- read_csv("metadata/EMTscores.csv")
+EMTscores <- read_csv(paste0("metadata/EMTscores",which_score,".csv"))
 resp = read_csv("metadata/matrix_resp.csv") #%>% dplyr::select(-c("COSMIC ID","TCGA Desc"))
 
 # iterate over cancer
