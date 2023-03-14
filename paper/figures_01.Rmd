@@ -284,11 +284,40 @@ ggplot(data, aes(x=EMT_score, y = exp(data$`1026-GDSC1`))) +
 ```
 
 ```{r Fig2_c_CCLE, fig.width= 2, fig.height=2}
-#CCLE -> wait for marisa response
-ccle_skcm_dr <- readRDS(paste0("/home/rstudio/old/EMT_paper_figures/","data_frames/CCLE_skcm_df.Rdata"))
-cortest <- cor.test(ccle_skcm_dr$EMT_score, ccle_skcm_dr$AT13387_688229)
-ggplot(ccle_skcm_dr, aes(x=EMT_score, y=10**AT13387_688229)) + 
-  stat_smooth(method = "lm", color = "gray50", fill = "gray65") + geom_point() + xlab("EMTscore") + ylab("EC50") + 
+EMTscores_ccle <- read_csv(paste0(path,"metadata/EMTscores_ccle.csv"))
+EMTscores_ccle$EMT_score <- -EMTscores_ccle$EMT_score
+drug_response_ccle <- read.delim(paste0(path,"data/depmap/v20.data.curves_post_qc.txt"))
+meta_experiment <- read.delim(paste0(path,"data/depmap/v20.meta.per_experiment.txt"))
+
+meta_cell <- read.delim(paste0(path,"data/depmap/v20.meta.per_cell_line.txt"))
+sample_info <- read.csv(paste0(path,"data/depmap/sample_info.csv"))
+sample_info <- left_join(meta_cell[,1:2], sample_info, by = c("ccl_name" = "stripped_cell_line_name"))
+
+# 688229: onalespib
+# 50134: tanespimycin
+# 362338: SNX-2112
+dr_onalespib <- drug_response_ccle[drug_response_ccle$master_cpd_id == 50134,]
+dr_onalespib <- full_join(dr_onalespib, meta_experiment, by = c("experiment_id"))
+dr_onalespib <- full_join(dr_onalespib, EMTscores_ccle, by = c("master_ccl_id" = "COSMIC_ID")) %>%
+  dplyr::filter(TCGA == "skin")
+dr_onalespib <- left_join(dr_onalespib, sample_info, by = "master_ccl_id")
+
+# filter melanoma
+dr_onalespib <- dr_onalespib %>%
+  #dplyr::filter(!is.na(COSMICID)) %>%
+  #dplyr::filter(Subtype == "Melanoma")
+  #dplyr::filter(Sanger_Model_ID != "") %>%
+  dplyr::filter(lineage == "skin")
+dr_onalespib$AUC <- unlist(lapply(1:nrow(dr_onalespib), function(i) dr_onalespib$area_under_curve[i]/dr_onalespib$conc_pts_fit[i]))
+
+ccle_skcm_dr <- dr_onalespib
+ccle_skcm_dr <- (na.omit(ccle_skcm_dr[,c("EMT_score","apparent_ec50_umol","AUC")])) %>% distinct
+cortest <- cor.test(ccle_skcm_dr$EMT_score, (ccle_skcm_dr$apparent_ec50_umol+0.0000001))
+cortest
+ggplot(ccle_skcm_dr, aes(x=EMT_score, y=apparent_ec50_umol+0.0000001)) + 
+  stat_smooth(method = "lm", color = "gray50", fill = "gray65") + 
+  geom_point() + 
+  xlab("EMTscore") + ylab("EC50") + 
   ggtitle("AT13387 (onalespib) in CCLE")+ theme_classic()+
   xlab("EMT score") + ylab("log10(EC50 [µM])") +
   #theme(plot.title = element_text(size = 20), 
@@ -297,36 +326,48 @@ ggplot(ccle_skcm_dr, aes(x=EMT_score, y=10**AT13387_688229)) +
   #                                                                legend.position = "none") 
    scale_y_log10(
    breaks = scales::trans_breaks("log10", function(x) 10^x),
-   labels = scales::trans_format("log10", scales::math_format(10^.x)),
-   limits = c(0.000001, 100000)
+   labels = scales::trans_format("log10", scales::math_format(10^.x))
+   #limits = c(0.05, 1000)
    )+
   annotate("text", label = paste0("r = ",as.numeric(round(cortest$estimate, 2)),"\n","p = ",round(cortest$p.value, 3)) , 
-           x = max(ccle_skcm_dr$EMT_score[!is.na(ccle_skcm_dr$AT13387_688229)]), y = 0.000001, vjust = 0, hjust = 1)
+           x = min(ccle_skcm_dr$EMT_score[!is.na(ccle_skcm_dr$apparent_ec50_umol)]), y = 0.1, vjust = 1, hjust = 0)+
+  annotation_logticks()
 ```
 
 ```{r Fig2_j, fig.width= 2.6, fig.height=5.4}
-
-# HEATMAP -> wait for marisas answer for the correlations
-if(F){
+if(T){
+colors_genes <- readRDS(paste0(path,"metadata/colors_genes_enrichr_luminespib_melanoma.rds"))
 colors_genes_here <- colors_genes
 colors_genes_here[names(colors_genes) %in% c("CDH1","CDH2")] <- "darkgreen"
 colors_genes_here[colors_genes %in% c("deepskyblue")] <- "darkorange"
 colors_genes_here[colors_genes %in% c("darkorange")] <- "navyblue"
+colors_genes_here <- c(MITF = "darkgreen", colors_genes_here)
 
-hm_df <- t(skcm_hm_df[,8:(ncol(skcm_hm_df)-1)]) - rowMeans(t(skcm_hm_df[,8:(ncol(skcm_hm_df)-1)]))
+# make expression dastaframe
+rna <- read_csv(paste0(path,"metadata/matrix_exp.csv")) %>% dplyr::filter(`COSMIC ID` %in% (EMTscores$`COSMIC ID`[EMTscores$`TCGA Desc` == "SKCM"]))
+gex_gdsc_t <- rna[,colnames(rna) %in% c(names(colors_genes_here),"COSMIC ID","TCGA Desc")]
+skcm_emt <- EMTscores[EMTscores$`TCGA Desc` == "SKCM",]
+skcm_emt <- left_join(skcm_emt, resp[,c("COSMIC ID","1559-GDSC2"),drop = F])
+tmp <- left_join(skcm_emt, gex_gdsc_t, by = c("COSMIC ID" = "COSMIC ID"))
+tmp <- na.omit(tmp)
+skcm_hm_df <- tmp
+
+hm_df <- t(skcm_hm_df[,6:(ncol(skcm_hm_df))]) - rowMeans(t(skcm_hm_df[,6:(ncol(skcm_hm_df))]))
+hm_df <- hm_df[names(colors_genes_here),]
 logical <- row.names(hm_df) %in% (names(colors_genes_here)[colors_genes_here != "black"]) # rep(T,nrow(hm_df))
 hm_df <- hm_df[logical,]
 colors_genes_df <- colors_genes_here[logical]
 
 col_fun = colorRamp2(c(-4, 0, 4), viridis(3))
-an <- HeatmapAnnotation(response = skcm_hm_df$IC50.2_Luminespib.1559.GDSC2, EMT = skcm_hm_df$EMT_by_cancer,
-                        col = list(response = colorRamp2(range(skcm_hm_df$IC50.2_Luminespib.1559.GDSC2), c("grey20", "grey80")),
-                                   EMT = colorRamp2(range(skcm_hm_df$EMT_by_cancer), c("navyblue","orange"))),
-                        annotation_legend_param = list(EMT = list(at = c(1, -4), labels = c("epithelial", "mesenchymal"))))
+an <- HeatmapAnnotation(response = skcm_hm_df$`1559-GDSC2`, EMT = skcm_hm_df$EMT_score,
+                        col = list(response = colorRamp2(range(skcm_hm_df$`1559-GDSC2`), c("grey20", "grey80")),
+                                   EMT = colorRamp2(range(skcm_hm_df$EMT_score), c("navyblue","orange"))),
+                        annotation_legend_param = list(EMT = list(at = c(-1, 4), labels = c("epithelial", "mesenchymal"))))
+set.seed(1234)
 draw(Heatmap(hm_df, top_annotation = an, name = "expression", col = col_fun,
              row_names_gp = gpar(fontsize = 4, col = colors_genes_df), 
              column_names_gp = gpar(fontsize = 4),
-             km = 3, 
+             km = 2, 
              show_column_names = TRUE,
              show_row_dend = F, 
              row_title = NULL), 
