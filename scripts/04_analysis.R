@@ -25,13 +25,13 @@ tmp_drugs <- full_join(tmp1, tmp2) %>%
 
 
 cancertypes <- unique(c('PANCAN', unlist(EMTscores['TCGA Desc'])))
-run <- "run3"
-which_score <- "gsva" # "" 
+run <- "run5"
+which_score <- ""#"gsva" # "" 
 results_path <- paste0("metadata/",run,"/results")
 dir.create(results_path)
 
 # costum
-#which_run <- 25
+which_run <- 25
 # costum
 
 EMTscores <- read_csv(paste0("metadata/EMTscores",which_score,".csv"))

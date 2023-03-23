@@ -1,3 +1,6 @@
+# Container images
+environment/*.tar.gz
+
 # History files
 .Rhistory
 .Rapp.history

@@ -4,8 +4,12 @@ library(dplyr)
 library(tidyr)
 library(tibble)
 
-which_score <- "gsva" # "" 
-run <- "run2"
+which_score <- "" #"gsva" # "" 
+run <- "run5"
+
+# costum
+which_run <- 25
+# costum
 
 EMTscores <- read_csv(paste0("metadata/EMTscores",which_score,".csv"))
 cancertypes <- unique(c('PANCAN', unlist(EMTscores['TCGA Desc'])))
@@ -19,9 +23,7 @@ df <- tibble(drug = character(length = ncol(resp)),
 results_path <- paste0("metadata/",run,"/results")
 dir.create(results_path)
 overwrite <- FALSE
-# costum
-#which_run <- 25
-# costum
+
 
 # iterate over cancer
 for( which_run in 1:length(cancertypes)){
@@ -52,7 +54,7 @@ for( which_run in 1:length(cancertypes)){
                                 repeatfold = col_character()
                               )
                               )
-      model_true <- read_csv(files[2], 
+      model_true <- tryCatch(read_csv(files[2], 
                              col_types = cols(
                                `COSMIC ID` = col_double(),
                                preds = col_double(),
@@ -61,7 +63,7 @@ for( which_run in 1:length(cancertypes)){
                                folds = col_double(),
                                repeatfold = col_character()
                              )
-                             )
+                             ), error = function(e) data.frame(NA) )
       if((ncol(model_false)<2) | (ncol(model_true)<2)){
         l <- c('false'=NA,"true"=NA)
         l_na <- c('false'=NA,"true"=NA)
@@ -85,15 +87,27 @@ for( which_run in 1:length(cancertypes)){
         l_na[['true']] = model_true$cor_na
       }
       
+      if(all(is.na(model_true))){
+        l <- unique(model_false$repeatfold)
+        l <- tryCatch(as.numeric(strsplit(gsub(",,",",",gsub(",,",",",gsub("\\)",",",gsub("\\(",",",gsub("\\]",",",gsub("\\[",",",gsub(" ",",",l))))))),",")[[1]][-1]), error = function(e) l)
+      }
+      
       df[which, "values"][[1]] <- list(l)
       df[which, "values_na"][[1]] <- list(l_na)
       df[which,"drug"] <- colnames(resp)[which]
     }
     saveRDS(df, file = save_path)
+    
+    if(max(unlist(lapply(df$values, length))) == 4){ # for grf if 'values' column has CIs
+      df <- unnest_wider(df, col = values)
+      saveRDS(df, file = save_path)
+    }
   }
 }
 
 
+# for grf models:
 
+# 
 
 

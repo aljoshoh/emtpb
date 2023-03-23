@@ -51,7 +51,9 @@ RUN pip3 install dvc
 
 # install python stuff
 RUN pip3 install jupyterlab
-RUN pip3 install pandas numpy joblib scikit-learn matplotlib 
+RUN pip3 install pandas numpy==1.23.5 joblib scikit-learn matplotlib 
+RUN pip3 install pyro-ppl 
+RUN pip3 install econml
 
 # install some basic packages
 RUN install2.r --error \
