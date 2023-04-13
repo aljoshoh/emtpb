@@ -166,12 +166,14 @@ if(F){
   scores <- read_excel("data/Table_S4C_EMT_curated.xlsx")
   scores$`COSMIC ID` <- as.numeric(unlist(lapply(scores$`CosmicID Label`, function(x) strsplit(x," ")[[1]][1])))
   scores <- scores %>% 
-    mutate(EMT_score = as.numeric(gsub(" ","", `Generic.EMT .\nCL.Ksscore`)))
+    mutate(EMT_score = as.numeric(gsub(" ","", `Generic.EMT .\nCL.Ksscore`))) %>%
+    mutate(`COSMIC ID` = as.character(`COSMIC ID`))
   scores <- left_join(scores, (matrix_resp%>%mutate(gdsc_resp = "yes"))[,c("COSMIC ID","TCGA Desc","gdsc_resp")])
   
-  # PROBLEM only 695/789 cell lines overlap (88%)....
+  # PROBLEM only 692/789 cell lines overlap (88%).... 
   if(T){
     EMTscores <- scores[,c("COSMIC ID","TCGA Desc","EMT_score")]
+    print(nrow(na.omit(EMTscores))/nrow(EMTscores))
   }
   #EMT_gs <- list()
   #cancertypes <- cancertypes[cancertypes %in% names(which(table(matrix_exp$`TCGA Desc`) > 5))] # cancer types with more than 5 samples
@@ -182,6 +184,89 @@ if(F){
 ##############################################
 
 
+# add EMT score (4: secrier) ####################  -> using matrix_resp for tcga matching
+if(F){
+  emtpb_download(path = "data/secrier_supplementary_tables.xlsx",
+                 url = 'https://static-content.springer.com/esm/art%3A10.1038%2Fs41467-023-36439-7/MediaObjects/41467_2023_36439_MOESM8_ESM.xlsx',
+                 unzp = F)
+  #emtpb_download(path = "data/Model.csv",
+  #               url = 'https://s3-eu-west-1.amazonaws.com/pfigshare-u-files/38466923/Model.csv?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAIYCQYOYV5JSSROOA/20230227/eu-west-1/s3/aws4_request&X-Amz-Date=20230227T153029Z&X-Amz-Expires=10&X-Amz-SignedHeaders=host&X-Amz-Signature=fbccd46f6f002d8246596cc74cdc35c70e8337b0baf4d4c3d27209f2f209765a',
+  #               unzp = F)
+  
+  # get ccle data
+  anno <- read_csv("data/Model.csv") %>% mutate(CellLine = ModelID)
+  scores <- read_excel("data/secrier_supplementary_tables.xlsx", sheet = 5)
+  scores <- scores[,8:ncol(scores)] %>% na.omit
+  
+  scores$cell_line_name_ccle <- unlist(lapply(scores$CCLE_ID, function(x) strsplit(x,"_")[[1]][2]))
+  
+  scores <- left_join(scores, anno, by = c("cell_line_name_ccle"="StrippedCellLineName")) %>%
+    mutate(`COSMIC ID` = as.character(COSMICID)) %>%
+    mutate(EMT_score = emt_score)
+  scores <- left_join(scores, (matrix_resp%>%mutate(gdsc_resp = "yes"))[,c("COSMIC ID","TCGA Desc","gdsc_resp")])
+  scores_ccle <- scores[,c("COSMIC ID","TCGA Desc","EMT_score")]
+  
+  # get gdsc data -> using their inquired supplementary data
+  load("data/EMT_ic50__secrier.RData") # inquired supplementary file # contains emt_ic50
+  emt_ic50 <- emt_ic50[,c("gdsc_ID","emt_score")]
+  tmp1 <- read_csv("data/PANCANCER_Genetic_features_Sat Feb  4 15_33_58 2023.csv")
+  tmp2 <- read_csv("data/PANCANCER_Genetic_features_Sat Feb  4 15_42_40 2023.csv")
+  tmp <- full_join(tmp1, tmp2)
+  anno_gdsc <- distinct(tmp[,c("COSMIC ID","Cell Line Name","TCGA Desc")]) %>% rename(gdsc_ID = `Cell Line Name`)
+  emt_ic50 <- left_join(emt_ic50, anno_gdsc) %>%
+    rename(EMT_score = emt_score)
+  scores_gdsc <- emt_ic50[,c("COSMIC ID","TCGA Desc","EMT_score")]
+  
+  
+  
+  # PROBLEM only 477/734 (65%) cell lines overlap.... table(!is.na(scores_ccle$`COSMIC ID`))
+  if(T){
+    EMTscores <- rbind(scores_ccle, scores_gdsc)
+    EMTscores <- EMTscores[!(duplicated(EMTscores$`COSMIC ID`) & !is.na(EMTscores$`COSMIC ID`)),]
+    print(nrow(na.omit(EMTscores))/nrow(EMTscores))
+  }
+  #EMT_gs <- list()
+  #cancertypes <- cancertypes[cancertypes %in% names(which(table(matrix_exp$`TCGA Desc`) > 5))] # cancer types with more than 5 samples
+  #names(EMT_gs) <- cancertypes
+  #saveRDS(EMT_gs, file = "metadata/EMT_gs_gsva.rds")
+  write_csv(EMTscores, file = "metadata/EMTscores_secrier_065.csv")
+}
+##############################################
+
+
+# save
+write_csv(matrix_exp, file = "metadata/matrix_exp.csv")
+write_csv(matrix_mut_pancan, file = "metadata/matrix_mut_PANCAN.csv")
+write_csv(matrix_resp, file = "metadata/matrix_resp.csv")
+write_csv(matrix_resp_auc, file = "metadata/matrix_resp_auc.csv")
+for(cancertype in cancertypes){
+  write_csv(list_mut_ct[[cancertype]], file = paste0("metadata/matrix_mut_",cancertype,".csv"))
+}
+
+
+#
+#
+#
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# DEPRECATED
 # add EMT score (4: secrier) #################### -> using matrix_resp for tcga matching
 if(F){
   emtpb_download(path = "data/secrier_supplementary_tables.xlsx",
@@ -211,21 +296,6 @@ if(F){
   write_csv(EMTscores, file = "metadata/EMTscores_secrier_065.csv")
 }
 ##############################################
-
-
-# save
-write_csv(matrix_exp, file = "metadata/matrix_exp.csv")
-write_csv(matrix_mut_pancan, file = "metadata/matrix_mut_PANCAN.csv")
-write_csv(matrix_resp, file = "metadata/matrix_resp.csv")
-write_csv(matrix_resp_auc, file = "metadata/matrix_resp_auc.csv")
-for(cancertype in cancertypes){
-  write_csv(list_mut_ct[[cancertype]], file = paste0("metadata/matrix_mut_",cancertype,".csv"))
-}
-
-
-#
-#
-#
 
 
 
