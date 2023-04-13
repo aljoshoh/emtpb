@@ -1,4 +1,6 @@
 [core]
-    remote = denbi
+    remote = origin
 ['remote "denbi"']
     url = ssh://ubuntu@134.176.27.78:30130/vol/emtpb/dvc
+['remote "origin"']
+    url = /vol/emtpb/dvc

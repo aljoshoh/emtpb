@@ -127,3 +127,11 @@ wave-tests
 # Data and metadata
 /data
 /metadata
+
+# 
+scripts/.ipynb_checkpoints/*
+
+# nf work and logs
+nf/.*
+nf/work/*
+nf/nf.log

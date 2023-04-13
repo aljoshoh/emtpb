@@ -56,17 +56,17 @@ process nf_emtpb_convert_and_unpack {
         """
         jupyter nbconvert --to script '${notebook}'
 	
-	mkdir -p /localscratch/$USER/container;
- 	cd /localscratch/$USER/container;
+	mkdir -p ~/container;
+ 	cd ~/container;
 
  	#Check if directory exists
- 	if [[ ! -d "/localscratch/$USER/containers/emtpb" ]]
+ 	if [[ -d "~/container" ]]
  	then
- 		ch-tar2dir /lustre/groups/cbm01/code/alexander.ohnmacht/emtpb/metadata/emtpb.tar.gz /localscratch/$USER/container
- 		mkdir -p /localscratch/$USER/container/emtpb/lustre/groups
+ 		ch-tar2dir /vol/emtpb/emtpb/metadata/emtpb.tar.gz ~/container
+ 		mkdir -p ~/container/vol/emtpb
  	fi
-	mkdir -p /localscratch/$USER/container/emtpb/ch
-	touch /localscratch/$USER/container/emtpb/ch/environment
+	mkdir -p ~/container/ch
+	touch ~/container/ch/environment
         """
 }
 
@@ -90,12 +90,11 @@ process nf_emtpb_benchmark {
 	
 	script:
     	"""
-	echo '\nExecuting process with file $params.file and conda environment /home/icb/$USER/miniconda3/envs/$params.conda ...\n'
+	echo '\nExecuting process with file $params.file ...\n'
 	echo '\n Running script $params.file'
 	echo '\n RUN #$counter'
 	touch $counter
-	// python3 '/lustre/groups/cbm01/code/alexander.ohnmacht/emtpb/scripts/${notebook.baseName}.py' $counter
-	python3 '/vol/emtpb/emtpb/scripts/${notebook.baseName}.py' $counter'
+	python3 '/vol/emtpb/emtpb/scripts/${notebook.baseName}.py' '$counter'
 	"""
 }
 
