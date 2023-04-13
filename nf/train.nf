@@ -94,8 +94,8 @@ process nf_emtpb_benchmark {
 	echo '\n Running script $params.file'
 	echo '\n RUN #$counter'
 	touch $counter
-	python3 '/lustre/groups/cbm01/code/alexander.ohnmacht/emtpb/scripts/${notebook.baseName}.py' $counter
-
+	// python3 '/lustre/groups/cbm01/code/alexander.ohnmacht/emtpb/scripts/${notebook.baseName}.py' $counter
+	python3 '/vol/emtpb/emtpb/scripts/${notebook.baseName}.py' $counter'
 	"""
 }
 
@@ -103,8 +103,9 @@ process nf_emtpb_benchmark {
 workflow {
 	next = ""	
 
-	notebook = file(params.file)
-	next = nf_emtpb_convert_and_unpack(notebook)
+    // no need to unpack on denbi
+	// notebook = file(params.file)
+	// next = nf_emtpb_convert_and_unpack(notebook)
  
 	counter = counter_channel
 	notebook = file(params.file)

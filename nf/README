@@ -1,2 +1,5 @@
 # For benchmarking and modeling
 nf run train.nf --file=/path/to/file/02_benchmark.ipynb --amount=27 -profile slurm -bg > nf.log
+
+# on denbi
+nf run train.nf --file=/path/to/file/02_benchmark.ipynb --amount=448 --desc=exp1 > nf.log
