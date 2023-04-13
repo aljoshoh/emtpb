@@ -81,11 +81,6 @@ Temporary Items
 # Deprecated code
 old/
 
-# Data and Metadata
-metadata/
-data/
-
-
 # gitignore for nextflow
 
 .idea/**
@@ -129,3 +124,6 @@ plugins-prod
 sandbox
 wave-tests
 
+# Data and metadata
+/data
+/metadata
