@@ -1,8 +1,5 @@
-md5: 37e437a0f22ee019a12c9933af33095a
-wdir: .
 outs:
 - md5: 882b8e69e1dbdac5758b3560efdc7591.dir
   path: data
-  cache: true
-  metric: false
-  persist: false
+  size: 3438520125
+  nfiles: 87
