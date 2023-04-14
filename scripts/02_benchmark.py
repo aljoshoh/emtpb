@@ -1,18 +1,26 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[ ]:
+# In[4]:
 
 
 import sys
 import os
 import os.path
 from pathlib import Path
-os.chdir(Path(os.path.realpath('__file__')).parents[1])
-sys.path.append(Path(os.path.realpath('__file__')).parents[1])
+#os.chdir(Path(os.path.realpath('__file__')).parents[1])
+#sys.path.append(Path(os.path.realpath('__file__')).parents[1])
+current_dir = os.path.abspath(os.path.dirname('__file__'))
+current_dir = os.path.abspath(os.path.join(current_dir, os.pardir))
+os.chdir(current_dir)
+sys.path.append(current_dir)
+print(current_dir)
+
+os.chdir('/vol/emtpb/emtpb')
+sys.path.append('/vol/emtpb/emtpb')
 
 
-# In[ ]:
+# In[5]:
 
 
 import pandas as pd
@@ -79,7 +87,7 @@ example = False # "1159-GDSC2" # False
 cv = True
 
 
-# In[ ]:
+# In[6]:
 
 
 # use one parameter dict

@@ -135,3 +135,4 @@ scripts/.ipynb_checkpoints/*
 nf/.*
 nf/work/*
 nf/nf.log
+nf/trace-*
