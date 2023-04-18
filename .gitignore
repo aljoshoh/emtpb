@@ -136,3 +136,4 @@ nf/.*
 nf/work/*
 nf/nf.log
 nf/trace-*
+nf/history/*

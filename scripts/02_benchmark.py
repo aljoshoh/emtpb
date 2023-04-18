@@ -1,13 +1,14 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[4]:
+# In[44]:
 
 
 import sys
 import os
 import os.path
 from pathlib import Path
+from sys import exit
 #os.chdir(Path(os.path.realpath('__file__')).parents[1])
 #sys.path.append(Path(os.path.realpath('__file__')).parents[1])
 current_dir = os.path.abspath(os.path.dirname('__file__'))
@@ -20,7 +21,7 @@ os.chdir('/vol/emtpb/emtpb')
 sys.path.append('/vol/emtpb/emtpb')
 
 
-# In[5]:
+# In[45]:
 
 
 import pandas as pd
@@ -53,7 +54,7 @@ from sklearn.linear_model import LassoCV
 #run = "run6"
 score = ["","_gsva","_tan_088","_secrier_065"]
 model_type = ["eln","grf"]
-response_type = ["","auc"]
+response_type = ["","_auc"]
 cancer_type = range(28)
 
 # create all possible combinations
@@ -87,7 +88,7 @@ example = False # "1159-GDSC2" # False
 cv = True
 
 
-# In[6]:
+# In[46]:
 
 
 # use one parameter dict
@@ -99,7 +100,7 @@ else:
 which_run = int(argument[1]) - 1
 print("emtpb: Parallel run "+str(which_run))
 ### costum
-#which_run = 0
+which_run = 316
 ###
 
 # assign values for run
@@ -112,8 +113,17 @@ model_type = params['model_type']
 response_type = params['response_type']
 cancer_type = params['cancer_type']
 
-EMTscores = pd.read_csv("metadata/EMTscores"+str(score)+".csv")
+#define cancer types based on marisa
+EMTscores = pd.read_csv("metadata/EMTscores.csv")
 cancertypes = np.concatenate((['PANCAN'], EMTscores['TCGA Desc'].unique()))
+#select to be screened
+EMTscores = pd.read_csv("metadata/EMTscores"+str(score)+".csv")
+cancertypes_here = np.concatenate((['PANCAN'], EMTscores['TCGA Desc'].unique()))
+
+#end run if it does not exist
+if cancertypes[cancer_type] not in cancertypes_here:
+    exit(0)
+
 preds_dir = "metadata/"+run+"/predictions/"+cancertypes[cancer_type]+"/"
 model_dir = "metadata/"+run+"/models/"+cancertypes[cancer_type]+"/"
 os.makedirs(preds_dir, exist_ok=True)
@@ -413,7 +423,7 @@ for index in range(len(cols)):
 # In[ ]:
 
 
-print("emt_pb: done modelling "+cancertypes[cancer_types]+"for run"+str(which_run)+".")
+print("emt_pb: done modelling "+cancertypes[cancer_type]+"for run"+str(which_run)+".")
 
 
 # In[ ]:
