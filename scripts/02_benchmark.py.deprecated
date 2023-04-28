@@ -100,14 +100,14 @@ else:
 which_run = int(argument[1]) - 1
 print("emtpb: Parallel run "+str(which_run))
 ### costum
-#which_run = 316
+which_run = 316
 ###
 
 # assign values for run
 print("emtpb: Updated manual parallel run "+str(which_run))
 params = df.iloc[which_run]
-
 print(params)
+
 run = 'run'+params['run']
 score = params['score']
 model_type = params['model_type']
@@ -351,7 +351,7 @@ def run_model_cv(X, y, outer_seed, inner_seed, model_dir, preds_dir, names, whic
 
 
 # benchmark
-for index in range(len(cols)):
+for index in range(10): #len(cols)
     
     ### costum
     #index = 0
@@ -424,7 +424,7 @@ for index in range(len(cols)):
 # In[ ]:
 
 
-print("emt_pb: done modelling "+cancertypes[cancer_type]+" for run "+str(which_run)+".")
+print("emt_pb: done modelling "+cancertypes[cancer_type]+"for run"+str(which_run)+".")
 
 
 # In[ ]:
