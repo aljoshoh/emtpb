@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[44]:
+# In[ ]:
 
 
 import sys
@@ -21,7 +21,7 @@ os.chdir('/vol/emtpb/emtpb')
 sys.path.append('/vol/emtpb/emtpb')
 
 
-# In[45]:
+# In[ ]:
 
 
 import pandas as pd
@@ -88,7 +88,7 @@ example = False # "1159-GDSC2" # False
 cv = True
 
 
-# In[46]:
+# In[ ]:
 
 
 # use one parameter dict
@@ -100,7 +100,7 @@ else:
 which_run = int(argument[1]) - 1
 print("emtpb: Parallel run "+str(which_run))
 ### costum
-#which_run = 316
+#which_run = 80
 ###
 
 # assign values for run
@@ -146,7 +146,7 @@ def t_test(x, vadj=7.25): # 7.25 for 5x5 cv
     return 2 * stats.t.sf(np.abs(stat), n-1)
 
 
-def run_model_cv(X, y, outer_seed, inner_seed, model_dir, preds_dir, names, which_index, outer_folds = 5, inner_folds = 5, repeats = 5, baseline = False, save_models = False, model_type = "eln", check_for_trained = True, min_samples = 25):
+def run_model_cv(X, y, outer_seed, inner_seed, model_dir, preds_dir, names, which_index, outer_folds = 5, inner_folds = 5, repeats = 5, baseline = False, save_models = False, model_type = "eln", check_for_trained = True, min_samples = 25, save = True):
     
     # predictions save path and check if its exists already
     preds_filename = os.path.join(preds_dir, f"predictions_{model_type}_{which_index}_{baseline}.csv")
@@ -163,6 +163,7 @@ def run_model_cv(X, y, outer_seed, inner_seed, model_dir, preds_dir, names, whic
     all_all_predictions = []
     all_all_truth = []
     all_all_folds = []
+    all_all_effects = []
    
     # Initialize names
     names = pd.DataFrame(names)
@@ -187,6 +188,7 @@ def run_model_cv(X, y, outer_seed, inner_seed, model_dir, preds_dir, names, whic
         all_predictions = []
         all_truth = []
         all_folds = []
+        all_effects = []
 
         # set the seed for the outer cross-validation
         outer_cv.random_state = outer_seed + repeat
@@ -205,7 +207,6 @@ def run_model_cv(X, y, outer_seed, inner_seed, model_dir, preds_dir, names, whic
                                      random_state=inner_seed,
                                      tol=0.01)
                 
-
             # random forest
             if model_type == "rf":
                 model = RandomForestRegressor(random_state=inner_seed)
@@ -247,6 +248,7 @@ def run_model_cv(X, y, outer_seed, inner_seed, model_dir, preds_dir, names, whic
                 all_predictions.append(y_pred)
                 all_truth.append(y_test)
                 all_folds.append([i]*len(y_test))
+                all_effects.append([0]*len(y_test))
                 
             # causal modelling
             if model_type in ["grf"]:
@@ -267,18 +269,38 @@ def run_model_cv(X, y, outer_seed, inner_seed, model_dir, preds_dir, names, whic
 
                     # fit model
                     model.fit(Y = y_train, T = X_train[:,0], X = X_red) #model.fit(tmp, mat[:,0], X=matt)
-                    summary = model.const_marginal_ate_inference(X_red_test) #, model.const_marginal_ate_interval(np.delete(mat,(0), axis=1))
+                    summary = model.effect_inference(X_red_test) #, model.const_marginal_ate_interval(np.delete(mat,(0), axis=1))
                     #print(summary)
                     #print(summary.pvalue())
                     
                     # make predictions on the test set
                     #y_pred = model.predict(X_test)
-                    y_pred = model.effect(X_red_test)
+                    #pdb.set_trace()
+                    #global T_TRAIN
+                    #T_TRAIN = X_train[:,0]
+                    #global T_TEST
+                    #T_TEST = X_test[:,0]
+                    #global X_TRAIN
+                    #X_TRAIN = X_red
+                    #global X_TEST
+                    #X_TEST = X_red_test
+                    #global Y_TRAIN
+                    #Y_TRAIN = y_train
+                    #global Y_TEST
+                    #Y_TEST = y_test
+                    #global MODEL
+                    #MODEL = model
+                    #return 
+                    
+                    #MODEL.models_y[0][-1].predict(X_TEST) + MODEL.effect(X_TEST) * (MODEL.models_t[0][-1].predict(X_TEST)+T_TEST)
+                    #y_pred = model.effect(X_red_test)
+                    y_pred = model.models_y[0][-1].predict(X_red_test) + model.effect(X_red_test) * (model.models_t[0][-1].predict(X_red_test)+X_test[:,0])
 
                     # save the predictions
                     all_predictions.append(y_pred)
                     all_truth.append(y_test)
-                    all_folds.append([np.array2string(np.array([summary.pvalue(),model.const_marginal_ate(X_red_test),model.const_marginal_ate_interval(X_red_test)], dtype=object))]*len(y_test)) # transformback with: transformed_array = np.fromstring(my_array.replace('\n', '').replace(' ', ',').replace(',,',',').replace('(','').replace(')','')[1:-1], sep=',')
+                    all_folds.append([i]*len(y_test))
+                    all_effects.append([np.array2string(np.array([summary.pvalue(),model.effect(X_red_test),model.effect_interval(X_red_test)], dtype=object))]*len(y_test)) # transformback with: transformed_array = np.fromstring(my_array.replace('\n', '').replace(' ', ',').replace(',,',',').replace('(','').replace(')','')[1:-1], sep=',')
                     #all_folds.append([i]*len(y_test))
                     
                     pass
@@ -290,7 +312,7 @@ def run_model_cv(X, y, outer_seed, inner_seed, model_dir, preds_dir, names, whic
 
                     # fit model
                     model.fit(y, X[:,0], X=X_red) #model.fit(tmp, mat[:,0], X=matt)
-                    summary = model.const_marginal_ate_inference(X_red) #, model.const_marginal_ate_interval(np.delete(mat,(0), axis=1))
+                    summary = model.effect_inference(X_red) #, model.const_marginal_ate_interval(np.delete(mat,(0), axis=1))
                     #print(summary)
                     #print(summary.pvalue())
                     
@@ -301,7 +323,8 @@ def run_model_cv(X, y, outer_seed, inner_seed, model_dir, preds_dir, names, whic
                     # save the predictions
                     all_predictions.append(y_pred)
                     all_truth.append(y)
-                    all_folds.append([np.array2string(np.array([summary.pvalue(),model.const_marginal_ate(X_red),model.const_marginal_ate_interval(X_red)], dtype=object))]*len(y)) # transformback with: transformed_array = np.fromstring(my_array.replace('\n', '').replace(' ', ',').replace(',,',',').replace('(','').replace(')','')[1:-1], sep=',')
+                    all_folds.append([i]*len(y_test))
+                    all_effects.append([np.array2string(np.array([summary.pvalue(),model.effect(X_red),model.effect_interval(X_red)], dtype=object))]*len(y)) # transformback with: transformed_array = np.fromstring(my_array.replace('\n', '').replace(' ', ',').replace(',,',',').replace('(','').replace(')','')[1:-1], sep=',')
                     #all_folds.append([i]*len(y_test))
                     
                     break
@@ -325,25 +348,31 @@ def run_model_cv(X, y, outer_seed, inner_seed, model_dir, preds_dir, names, whic
         all_predictions = np.concatenate(all_predictions)
         all_truth = np.concatenate(all_truth)
         all_folds = np.concatenate(all_folds)
+        all_effects = np.concatenate(all_effects)
         
         # save the cv results and append to resampling
         all_all_predictions.append(all_predictions)
         all_all_truth.append(all_truth)
         all_all_folds.append(all_folds)
+        all_all_effects.append(all_effects)
     
     # concatenate all the predictions
     all_all_predictions = np.concatenate(all_all_predictions)
     all_all_truth = np.concatenate(all_all_truth)
     all_all_folds = np.concatenate(all_all_folds)
+    all_all_effects = np.concatenate(all_all_effects)
     
     names["preds"] = all_all_predictions
     names["truth"] = all_all_truth#np.concatenate([y]*repeats)
     names["repeat"] = np.concatenate([[i]*len(y) for i in range(repeats)])
     names["folds"] = all_all_folds
     names["repeatfold"] = names["repeat"].astype(str) + names["folds"].astype(str)
+    names["effects"] = all_all_effects
     
     # save predictions 
-    names.to_csv(preds_filename, index=False)
+    if save:
+        names.to_csv(preds_filename, index=False)
+        
     return names
 
 
@@ -401,16 +430,23 @@ for index in range(len(cols)):
             model_type = model_type,
             save_models = False,
             check_for_trained = True,
-            outer_folds = 5
+            outer_folds = 5,
+            save = True
         )
+        
+        if df is not None:
+            test = df #pd.read_csv(preds_dir+"predictions_"+str(model_type)+"_"+str(index)+"_False.csv") # df if save=False
+            per = np.array(test.groupby("repeatfold")[['preds','truth']].corr().iloc[1::2,0])
+            per[np.isnan(per)] = 0
+            print(np.mean(per)) #
 
     if verbose:
-        test = pd.read_csv(preds_dir+"predictions_"+str(model_type)+"_"+str(index)+"_False.csv")
+        test = pd.read_csv(preds_dir+"predictions_"+str(model_type)+"_"+str(index)+"_False.csv") # df if save=False
         perfalse = np.array(test.groupby("repeatfold")[['preds','truth']].corr().iloc[1::2,0])
         perfalse[np.isnan(perfalse)] = 0
         print(perfalse)
         print(np.mean(perfalse)) # 
-        test = pd.read_csv(preds_dir+"predictions_"+str(model_type)+"_"+str(index)+"_True.csv")
+        test = pd.read_csv(preds_dir+"predictions_"+str(model_type)+"_"+str(index)+"_True.csv") # df if save=False
         pertrue = np.array(test.groupby("repeatfold")[['preds','truth']].corr().iloc[1::2,0])
         pertrue[np.isnan(pertrue)] = 0
         print(pertrue)
@@ -432,6 +468,12 @@ print("emt_pb: done modelling "+cancertypes[cancer_type]+" for run "+str(which_r
 
 #Check feature importances
 #m = joblib.load("metadata/run1/models/SKCM/model_513_False_0_0.joblib")
+
+
+# In[ ]:
+
+
+
 
 
 # In[ ]:
