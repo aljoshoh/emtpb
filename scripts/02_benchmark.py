@@ -48,6 +48,7 @@ from sklearn.model_selection import KFold
 from sklearn.metrics import mean_squared_error
 import itertools
 
+from econml import sklearn_extensions
 from econml.dml import CausalForestDML
 from sklearn.linear_model import LassoCV
 
@@ -100,7 +101,7 @@ else:
 which_run = int(argument[1]) - 1
 print("emtpb: Parallel run "+str(which_run))
 ### costum
-#which_run = 80
+which_run = 24
 ###
 
 # assign values for run
@@ -202,10 +203,11 @@ def run_model_cv(X, y, outer_seed, inner_seed, model_dir, preds_dir, names, whic
             
             # elastic net
             if model_type == "eln":
-                model = ElasticNetCV(l1_ratio=[0.01, .1, .5, .9, .95, 1],
-                                     cv=inner_cv,
-                                     random_state=inner_seed,
-                                     tol=0.01)
+                #model = ElasticNetCV(l1_ratio=[0.01, .1, .5, .9, .95, 1],
+                #                     cv=inner_cv,
+                #                     random_state=inner_seed,
+                #                     tol=0.01)
+                model = sklearn_extensions.linear_model.WeightedLassoCV(random_state = inner_seed)
                 
             # random forest
             if model_type == "rf":
@@ -253,14 +255,14 @@ def run_model_cv(X, y, outer_seed, inner_seed, model_dir, preds_dir, names, whic
             # causal modelling
             if model_type in ["grf"]:
 
-                basemodel = ElasticNetCV(l1_ratio=[0.01, .1, .5, .9, .95, 1],
-                                         cv=inner_cv,
-                                         random_state=inner_seed,
-                                         tol=0.01)
+                #basemodel = ElasticNetCV(l1_ratio=[0.01, .1, .5, .9, .95, 1],
+                #                         cv=inner_cv,
+                #                         random_state=inner_seed,
+                #                         tol=0.01)
                 
                 # fit the model on the training data
                 np.random.seed(123)
-                model = CausalForestDML(discrete_treatment=False, random_state=123, model_y=basemodel, model_t=basemodel)
+                model = CausalForestDML(discrete_treatment=False, random_state=123) #, model_y=basemodel, model_t=basemodel)
 
                 if cv:
                     #tmp = np.array(y) # np.random.permutation(
