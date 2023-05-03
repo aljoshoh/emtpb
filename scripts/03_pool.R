@@ -1,49 +1,69 @@
-setwd('emtpb/')
+#setwd('emtpb/')
 library(readr)
 library(dplyr)
 library(tidyr)
 library(tibble)
 
-which_score <- "" #"gsva" # "" 
-run <- "run5"
-
-# costum
-which_run <- 25
-# costum
-
-EMTscores <- read_csv(paste0("metadata/EMTscores",which_score,".csv"))
-cancertypes <- unique(c('PANCAN', unlist(EMTscores['TCGA Desc'])))
-resp = read_csv("metadata/matrix_resp.csv") %>% dplyr::select(-c("COSMIC ID","TCGA Desc"))
-df <- tibble(drug = character(length = ncol(resp)),
-             values_na = lapply(1:ncol(resp), list),
-             values = lapply(1:ncol(resp), list),
-             cancertype = rep(cancertypes[which_run],ncol(resp)),
-             .rows = ncol(resp))
-
-results_path <- paste0("metadata/",run,"/results")
-dir.create(results_path)
+experiment <- read_csv("metadata/paper/benchmark_paper_exp1.csv", na = character())
 overwrite <- FALSE
 
 
 # iterate over cancer
-for( which_run in 1:length(cancertypes)){
+pb <- txtProgressBar(min=1, max=nrow(experiment), style = 3, width = 20) 
+for( which_run in 1:nrow(experiment)){
+  
+  ###
+  # costum
+  #which_run <- 25
+  # costum
+  
+  score <- experiment$score[which_run]
+  run <- paste0("run",as.character(experiment$run[which_run]))
+  model <- experiment$model_type[which_run]
+  response_type <- experiment$response_type[which_run]
+  cancertype_index <- experiment$cancer_type[which_run+1]
+  
+  EMTscores <- suppressMessages(read_csv(paste0("metadata/EMTscores",score,".csv")))
+  cancertypes <- unique(c('PANCAN', unlist(EMTscores['TCGA Desc'])))
+  resp = suppressMessages(read_csv("metadata/matrix_resp.csv") %>% dplyr::select(-c("COSMIC ID","TCGA Desc")))
+  df <- tibble(drug = character(length = ncol(resp)),
+               values_na = lapply(1:ncol(resp), list),
+               values = lapply(1:ncol(resp), list),
+               cancertype = rep(cancertypes[cancertype_index],ncol(resp)),
+               .rows = ncol(resp))
+  
+  results_path <- paste0("metadata/",run,"/results")
+  dir.create(results_path)
+  ###
+  
+  
+  setTxtProgressBar(pb, which_run)
   message(which_run)
-  save_path <- paste0(results_path,"/",cancertypes[which_run],"_performances.rds")
+  #CHANGING RESULTS PATH
+  #save_path <- paste0(results_path,"/",cancertypes[cancertype_index],"_performances.rds")
+  save_path <- paste0(results_path,"/",
+                      "performances_",
+                      cancertypes[cancertype_index],"_",
+                      model,"_",
+                      score,"_",
+                      response_type,
+                      ".rds")
   if(overwrite & file.exists(save_path)){
-    message(paste0("File for cancertype ",cancertypes[which_run]," exists, skipping.."))
+    message(paste0("File for cancertype ",cancertypes[cancertype_index]," exists, skipping.."))
   }else{
     df <- tibble(drug = character(length = ncol(resp)),
                  values_na = lapply(1:ncol(resp), list),
                  values = lapply(1:ncol(resp), list),
-                 cancertype = rep(cancertypes[which_run],ncol(resp)),
+                 cancertype = rep(cancertypes[cancertype_index],ncol(resp)),
                  .rows = ncol(resp))
     # iteratre over run
-    pb <- txtProgressBar(min=1, max=ncol(resp), style = 3, width = 20) 
+    #pb <- txtProgressBar(min=1, max=ncol(resp), style = 3, width = 20) 
     for( which in 1:ncol(resp)){
       #which <- 1
-      setTxtProgressBar(pb, which)
-      preds_dir <- paste0("metadata/",run,"/predictions/",cancertypes[which_run],"/")
+      #setTxtProgressBar(pb, which)
+      preds_dir <- paste0("metadata/",run,"/predictions/",cancertypes[cancertype_index],"/")
       files <- list.files(path = preds_dir, pattern = paste0("._",as.character(which-1),"_."), full.names = TRUE)
+      rm(model_false); rm(model_true)
       model_false <- read_csv(files[1], 
                               col_types = cols(
                                 `COSMIC ID` = col_double(),

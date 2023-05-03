@@ -23,6 +23,7 @@ environment/*.tar.gz
 
 # RStudio files
 .Rproj.user/
+*.Rproj
 
 # produced vignettes
 vignettes/*.html
@@ -134,6 +135,6 @@ scripts/.ipynb_checkpoints/*
 # nf work and logs
 nf/.*
 nf/work/*
-nf/nf.log
+nf/nf*
 nf/trace-*
 nf/history/*

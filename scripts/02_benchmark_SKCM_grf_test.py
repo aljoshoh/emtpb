@@ -101,7 +101,7 @@ else:
 which_run = int(argument[1]) - 1
 print("emtpb: Parallel run "+str(which_run))
 ### costum
-#which_run = 24
+which_run = 80
 ###
 
 # assign values for run
