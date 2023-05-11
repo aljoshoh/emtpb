@@ -296,7 +296,7 @@ def run_model_cv(X, y, outer_seed, inner_seed, model_dir, preds_dir, names, whic
                     
                     #MODEL.models_y[0][-1].predict(X_TEST) + MODEL.effect(X_TEST) * (MODEL.models_t[0][-1].predict(X_TEST)+T_TEST)
                     #y_pred = model.effect(X_red_test)
-                    y_pred = model.models_y[0][-1].predict(X_red_test) + model.effect(X_red_test) * (model.models_t[0][-1].predict(X_red_test)+X_test[:,0])
+                    y_pred = model.models_y[0][-1].predict(X_red_test) + model.effect(X_red_test) * (X_test[:,0] - model.models_t[0][-1].predict(X_red_test))
 
                     # save the predictions
                     all_predictions.append(y_pred)
