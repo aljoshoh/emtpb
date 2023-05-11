@@ -94,8 +94,7 @@ process nf_emtpb_benchmark {
 	echo '\n Running script $params.file'
 	echo '\n RUN #$counter'
 	touch $counter
-	// python3 '/lustre/groups/cbm01/code/alexander.ohnmacht/emtpb/scripts/${notebook.baseName}.py' $counter
-	python3 '/vol/emtpb/emtpb/scripts/${notebook.baseName}.py' $counter'
+	python3 '/lustre/groups/cbm01/code/alexander.ohnmacht/emtpb/scripts/${notebook.baseName}.py' $counter
 	"""
 }
 
