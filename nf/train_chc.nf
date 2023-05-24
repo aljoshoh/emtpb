@@ -64,6 +64,7 @@ process nf_emtpb_convert_and_unpack {
  	then
  		ch-tar2dir /lustre/groups/cbm01/code/alexander.ohnmacht/emtpb/metadata/emtpb.tar.gz /localscratch/$USER/container
  		mkdir -p /localscratch/$USER/container/emtpb/lustre/groups
+		echo "alexander.ohnmacht:*:138132:20000:ICB Alexander Ohnmacht:/home/icb/alexander.ohnmacht:/bin/bash" >> /localscratch/alexander.ohnmacht/container/emtpb/etc/passwd
  	fi
 	mkdir -p /localscratch/$USER/container/emtpb/ch
 	touch /localscratch/$USER/container/emtpb/ch/environment
