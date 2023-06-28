@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[ ]:
 
 
 import sys
@@ -23,7 +23,7 @@ sys.path.append('/lustre/groups/cbm01/code/alexander.ohnmacht/emtpb')
 #sys.path.append('/vol/emtpb/emtpb')
 
 
-# In[2]:
+# In[ ]:
 
 
 import pandas as pd
@@ -58,16 +58,17 @@ from sklearn.linear_model import LassoCV
 score = ["","_gsva","_tan_088","_secrier_065"]
 model_type = ["eln","grf"]
 response_type = ["","_auc"]
-cancer_type = range(700)#range(28)
+cancer_type = range(28)
+drug = range(700)
 
 # create all possible combinations
-combinations = list(itertools.product(score, model_type, response_type, cancer_type))
+combinations = list(itertools.product(score, model_type, response_type, cancer_type, drug))
 
 # create a DataFrame for each combination
 dfs = []
 for comb in combinations:
     df = pd.DataFrame(list(comb)).T
-    df.columns = ["score", "model_type", "response_type", "cancer_type"]
+    df.columns = ["score", "model_type", "response_type", "cancer_type","drug"]
     dfs.append(df)
 
 # concatenate all DataFrames into a single DataFrame
@@ -78,20 +79,21 @@ counter = 0
 # iterate over the rows of the DataFrame
 for i, row in df.iterrows():
     # increment the counter by 1 every 28th row
-    if i % len(range(700)) == 0:
+    if i % len(range(700*28)) == 0:
         counter += 1
     # add the counter value to a new column
     df.loc[i, 'run'] = str(counter+6)
 
 # save DataFrame df
-df.to_csv("metadata/paper/benchmark_paper_exp2.csv", index=True)
+# df.to_csv("metadata/paper/benchmark_paper_exp3.csv", index=True)
+df = pd.read_csv("metadata/paper/benchmark_paper_exp4.csv", index_col=0)
 
 verbose = False # verbose=T does not work for CE
 example = True # "1159-GDSC2" # False
 cv = True
 
 
-# In[16]:
+# In[ ]:
 
 
 # use one parameter dict
@@ -115,8 +117,8 @@ run = 'run'+params['run']
 score = params['score']
 model_type = params['model_type']
 response_type = params['response_type']
-cancer_type = 'PANCAN' ##params['cancer_type']
-index_drug = params['cancer_type'] # was not there
+cancer_type = params['cancer_type']
+index_drug = params['drug'] # was not there
 
 #define cancer types based on marisa
 EMTscores = pd.read_csv("metadata/EMTscores.csv")
@@ -126,23 +128,23 @@ EMTscores = pd.read_csv("metadata/EMTscores"+str(score)+".csv")
 cancertypes_here = np.concatenate((['PANCAN'], EMTscores['TCGA Desc'].unique()))
 
 #end run if it does not exist
-if cancertypes[0] not in cancertypes_here:
+if cancertypes[cancer_type] not in cancertypes_here:
     exit(0)
 
-preds_dir = "metadata/"+run+"/predictions/"+cancertypes[0]+"/"
-model_dir = "metadata/"+run+"/models/"+cancertypes[0]+"/"
+preds_dir = "metadata/"+run+"/predictions/"+cancertypes[cancer_type]+"/"
+model_dir = "metadata/"+run+"/models/"+cancertypes[cancer_type]+"/"
 #preds_dir = "metadata/"+run+"/predictions/"+cancertypes[cancer_type]+"/"
 #model_dir = "metadata/"+run+"/models/"+cancertypes[cancer_type]+"/"
 os.makedirs(preds_dir, exist_ok=True)
 os.makedirs(model_dir, exist_ok=True)
 
-mut = pd.read_csv("metadata/matrix_mut_"+cancertypes[0]+".csv")
+mut = pd.read_csv("metadata/matrix_mut_"+cancertypes[cancer_type]+".csv")
 #mut = pd.read_csv("metadata/matrix_mut_"+cancertypes[cancer_type]+".csv")
 resp_full = pd.read_csv("metadata/matrix_resp"+response_type+".csv")
 cols = resp_full.columns[resp_full.columns.str.contains('GDSC')]
 
 
-# In[19]:
+# In[ ]:
 
 
 # Functions
@@ -384,7 +386,7 @@ def run_model_cv(X, y, outer_seed, inner_seed, model_dir, preds_dir, names, whic
     return names
 
 
-# In[20]:
+# In[ ]:
 
 
 # benchmark
@@ -404,7 +406,7 @@ for index in range(len(cols)):
     resp = resp[["COSMIC ID","TCGA Desc",cols[index]]]
     mat = pd.merge(EMTscores, resp, how='outer')
     if cancertypes[0] != "PANCAN":
-        mat = mat[mat['TCGA Desc'] == cancertypes[0]]
+        mat = mat[mat['TCGA Desc'] == cancertypes[cancer_type]]
     mat = pd.merge(mat, mut, how='outer')
     mat = pd.get_dummies(mat)
     mat_df = mat
@@ -465,10 +467,10 @@ for index in range(len(cols)):
         break
 
 
-# In[21]:
+# In[ ]:
 
 
-print("emt_pb: done modelling "+cancertypes[0]+" for run "+str(which_run)+" and drug index "+str(index_drug)+".")
+print("emt_pb: done modelling "+cancertypes[cancer_type]+" for run "+str(which_run)+" and drug index "+str(index_drug)+".")
 
 
 # In[ ]:
