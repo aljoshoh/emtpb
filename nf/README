@@ -4,6 +4,9 @@ nf run train.nf --file=/path/to/file/02_benchmark.ipynb --amount=27 -profile slu
 # on denbi
 nf run train.nf --file=/vol/emtpb/emtpb/scripts/02_benchmark.ipynb --amount=448 --desc=exp1 > nf.log
 
+
+# put --amount minus one !!
+
 # on chc
 nf run train_chc.nf --file=/lustre/groups/cbm01/code/alexander.ohnmacht/emtpb/scripts/02_benchmark_PANCAN.ipynb --amount=313600 --desc=exp3 -profile slurm -bg -with-trace -ansi-log false --Xms500M --Xmx2G > nf.log
 
