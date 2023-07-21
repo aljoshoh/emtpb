@@ -86,7 +86,7 @@ for i, row in df.iterrows():
 
 # save DataFrame df
 # df.to_csv("metadata/paper/benchmark_paper_exp3.csv", index=True)
-df = pd.read_csv("metadata/paper/benchmark_paper_exp4.csv", index_col=0)
+df = pd.read_csv("metadata/paper/benchmark_paper_exp4.csv", index_col=0, keep_default_na=False)
 
 verbose = False # verbose=T does not work for CE
 example = True # "1159-GDSC2" # False
@@ -113,7 +113,7 @@ print("emtpb: Updated manual parallel run "+str(which_run))
 params = df.iloc[which_run]
 
 print(params)
-run = 'run'+params['run']
+run = 'run'+str(params['run'])
 score = params['score']
 model_type = params['model_type']
 response_type = params['response_type']
