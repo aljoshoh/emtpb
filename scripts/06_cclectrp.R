@@ -74,6 +74,7 @@ for(tissue in 1:length(unique(expression$ccle_primary_site))){ # was 12 ?
 
 #View(expression[expression$ccle_primary_site == curr_tissue,])
 saveRDS(EMT_gs, file = "metadata/EMT_gs_ccle.rds")
+colnames(EMTscores) = c("COSMIC ID","TCGA Desc","EMT_score")
 write_csv(EMTscores, file = "metadata/EMTscores_ccle.csv")
 
 

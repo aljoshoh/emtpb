@@ -126,6 +126,7 @@ for(tcga in 1:length(cancertypes)){
 }
 names(EMT_gs) <- cancertypes
 saveRDS(EMT_gs, file = "metadata/EMT_gs.rds")
+colnames(EMTscores) = c("COSMIC ID","TCGA Desc","EMT_score")
 write_csv(EMTscores, file = "metadata/EMTscores.csv")
 ##############################################
 
