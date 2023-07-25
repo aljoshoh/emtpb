@@ -3,7 +3,7 @@ library(dplyr)
 library(ggplot2)
 library(ggrepel)
 library(ggbeeswarm)
-path <- paste0(getwd(),"/")
+path <- "/Users/alexander.ohnmacht/research/marisa/emtpb/"
 resp <- read_csv(paste0(path,"metadata/matrix_resp.csv")) #%>% dplyr::select(-c("COSMIC ID","TCGA Desc"))
 EMTscores <- read_csv(paste0(path,"metadata/EMTscores.csv")) #%>% dplyr::select(-c("COSMIC ID","TCGA Desc"))
 rna <- read_csv(paste0(path,"metadata/matrix_exp.csv")) %>% dplyr::filter(`COSMIC ID` %in% (EMTscores$`COSMIC ID`[EMTscores$`TCGA Desc` == "SKCM"]))

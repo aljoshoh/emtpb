@@ -9,6 +9,10 @@ source("R/functions.R")
 dir.create("data/")
 dir.create("metadata/")
 
+# download drug metadata release 8.4
+emtpb_download(path = "data/screened_compounds_rel_8.4.csv",
+               url = 'https://cog.sanger.ac.uk/cancerrxgene/GDSC_release8.4/screened_compounds_rel_8.4.csv',
+               unzp = F)
 
 # download mutational data gdsc1/gdsc2 pancancer
 emtpb_download(path = "data/PANCANCER_Genetic_features_Sat Feb  4 15_33_58 2023.csv",
@@ -66,6 +70,7 @@ emtpb_download(path = "data/PANCANCER_IC_Wed Feb 8 15_46_31 2023_GDSC2.csv",
 tmp1 <- read_csv("data/PANCANCER_IC_Wed Feb 8 15_46_36 2023_GDSC1.csv")
 tmp2 <- read_csv("data/PANCANCER_IC_Wed Feb 8 15_46_31 2023_GDSC2.csv")
 tmp <- full_join(tmp1, tmp2)
+tmp_save <- tmp
 tmp <- tmp[,c("Cosmic ID","IC50","TCGA Classification","Drug Name","Drug ID","Dataset Version")] %>% 
   mutate(`DRUG ID` = paste0(`Drug ID`,"-",`Dataset Version`)) %>%
   mutate(`COSMIC ID` = `Cosmic ID`) %>%
@@ -75,7 +80,7 @@ tmp <- tmp[,c("Cosmic ID","IC50","TCGA Classification","Drug Name","Drug ID","Da
   mutate(`COSMIC ID` = as.character(`COSMIC ID`))
 matrix_resp <- tmp
 
-tmp <- tmp[,c("Cosmic ID","AUC","TCGA Classification","Drug Name","Drug ID","Dataset Version")] %>% 
+tmp <- tmp_save[,c("Cosmic ID","AUC","TCGA Classification","Drug Name","Drug ID","Dataset Version")] %>% 
   mutate(`DRUG ID` = paste0(`Drug ID`,"-",`Dataset Version`)) %>%
   mutate(`COSMIC ID` = `Cosmic ID`) %>%
   mutate(`TCGA Desc` = `TCGA Classification`) %>%

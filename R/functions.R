@@ -69,11 +69,60 @@ EMTscore_full <- function(gex = data.frame, marker_genes = c("CDH1", "CDH2", "VI
   EMTscore <- numeric(length = nrow(gex)) #create vector for EMT score
   epscore <- rowSums(epgex)/ncol(epgex) #calculate mean expression of epithelial genes
   messcore <- rowSums(mesgex)/ncol(mesgex) #calculate mean expression of mes. genes
-  EMTscore <- epscore - messcore #EMT score = epithelial - mesenchymal
+  EMTscore <- -(epscore - messcore) #EMT score = epithelial - mesenchymal #####  OTHER WAY AROUND NEW RUNS (exp5) (mesenchymal-epithelial)
   #create data frame with cosmic id, tcga label and emt score
   EMTscore_df <- data.frame(COSMIC_ID = gex$`COSMIC ID`, TCGA = gex$`TCGA Desc`, EMT_score = EMTscore)
   return(list(EMT_genes = EMTgenes, EMT_score = EMTscore_df))
 }
 ##################################
+
+
+enrichment <- function(
+    ###
+  ### Form an abundance table, calculate enrichment with hypergeometric test
+  ### 
+  ######################################################
+  tab, # table of counts for two covariates
+  col_label, # name of columns
+  row_label, # name of rows
+  digits # round of p-value to digit x
+){
+  tab_test <- matrix(ncol = ncol(tab), nrow = nrow(tab))
+  for(i in 1:nrow(tab_test)){
+    for(j in 1:ncol(tab_test)){
+      #p_under <- phyper(q = tab[i,j],
+      #                  m = sum(tab[i,]),
+      #                  n = sum(tab[-i,]),
+      #                  k = sum(tab[,j]), 
+      #                  lower.tail = T # Under-representation
+      #)
+      p_over <- phyper(q = tab[i,j]-1,
+                       m = sum(tab[i,]),
+                       n = sum(tab[-i,]),
+                       k = sum(tab[,j]), 
+                       lower.tail = F # Over-representation
+      )
+      #p <- which.min(c(p_under,p_over))
+      p <- 2
+      #if(p==1){p <- -p_under}
+      if(p==2){p <- p_over}
+      tab_test[i,j] <-p 
+    }
+    row.names(tab_test) = row.names(tab)
+    colnames(tab_test)=colnames(tab)
+  }
+  tab_test <- reshape2::melt(tab_test); colnames(tab_test) = c(row_label,col_label,"value")
+  tab_test$label <- abs(round(tab_test$value, digits =digits))
+  tab_test$label <- unlist(lapply(tab_test$label, function(x) if(x < 0.05){paste0("p=",as.character(format.pval(x)),"*")}else{paste0("p=",as.character(format.pval(x)),"")}))
+  tab_test$Enrichment <- sign(tab_test$value)%>%as.character%>%dplyr::recode("1"="Over-enrichment","-1"="Under-enrichment")
+  tab_test$p <- abs(tab_test$value)
+  tab_test$fdr <- p.adjust(abs(tab_test$value), method = "BH")
+  tab_test$abundance <- lapply(1:nrow(tab_test), function(x) 
+    list(q = tab[tab_test[x,1],tab_test[x,2]]-1,m = sum(tab[tab_test[x,1],]),n = sum(tab[-c(tab_test[x,1]),]),k = sum(tab[,tab_test[x,2]]) )
+  )
+  
+  
+  return(tab_test)
+}
 
 

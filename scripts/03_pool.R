@@ -94,7 +94,8 @@ for( which_run in 1:nrow(experiment)){ #1:nrow(experiment) # c(25,81)
       preds_dir <- paste0(path_calcs,"metadata/",run,"/predictions/",cancertypes[cancertype_index],"/")
       files <- list.files(path = preds_dir, pattern = paste0("._",as.character(which-1),"_."), full.names = TRUE)
       rm(model_false); rm(model_true)
-      model_false <- read_csv(files[1], 
+      if(length(files)!=0){ # if running files do not exist, because of missing cancertype in secrier
+        model_false <- read_csv(files[1], 
                               col_types = cols(
                                 `COSMIC ID` = col_double(),
                                 preds = col_double(),
@@ -103,7 +104,10 @@ for( which_run in 1:nrow(experiment)){ #1:nrow(experiment) # c(25,81)
                                 folds = col_double(),
                                 repeatfold = col_character()
                               )
-      )
+        )
+      }else{
+        model_false <- as.data.frame(NA)
+      }
       model_true <- tryCatch(read_csv(files[2], 
                                       col_types = cols(
                                         `COSMIC ID` = col_double(),

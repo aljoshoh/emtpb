@@ -89,9 +89,9 @@ ggplot(EMTscores, aes(x = EMT_score)) + geom_histogram() + facet_wrap(vars(`TCGA
 ############################################################################################
 # Import resp (drug data) and EMTscores
 EMTscores_ccle <- read_csv("metadata/EMTscores_ccle.csv")
-EMTscores_ccle$EMT_score <- -EMTscores_ccle$EMT_score
+#EMTscores_ccle$EMT_score <- -EMTscores_ccle$EMT_score
 EMTscores <- read_csv("metadata/EMTscores.csv")
-EMTscores$EMT_score <- -EMTscores$EMT_score
+#EMTscores$EMT_score <- -EMTscores$EMT_score
 resp = read_csv(paste0(path,"metadata/matrix_resp.csv")) #%>% dplyr::select(-c("COSMIC ID","TCGA Desc"))
 GDSC_dr_wide2 <- full_join(resp, EMTscores)
 #GDSC_dr_wide2 <- read.csv("~/Dropbox/Dokumente/Master Human Biology/Master Thesis/GDSC/GDSC_drugresponse_mutations.csv")
