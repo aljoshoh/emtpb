@@ -51,6 +51,7 @@ library(shades)
 library(viridis)
 
 path <- "/home/rstudio/emtpb/"
+path <- "~/research/marisa/emtpb/"
 
 #load data frames
 #################
@@ -413,7 +414,7 @@ ggplot(EMTscores[EMTscores$`TCGA Desc` %in% c("BRCA", "COREAD", "OV", "SKCM","LU
   geom_density(alpha = 0.6) + theme_classic()+# theme(plot.title = element_text(size = 20),
                                               #                 axis.title = element_text(size = 15),
                                               #                 axis.text.x = element_text(size = 10)) + 
-  scale_fill_brewer(name = "cancer type",palette="Pastel1") + scale_color_brewer(name = "cancer type",palette="Pastel1")
+  scale_fill_brewer(name = "cancer type",palette="Pastel2") + scale_color_brewer(name = "cancer type",palette="Pastel2")
 ```
 
 ```{r Fig4_b, fig.height=2, fig.width=5}
@@ -468,7 +469,7 @@ ggplot(data = d)+
   ylim(c(0,4))+
   geom_hline(yintercept=-log10(h0), linetype='dotted', color = "grey66", size = 0.3)+
   annotate("text", x = 0.6, y = -log10(h0), label = paste0("FDR<",as.character(round(fdr_threshold*100)),"%"), hjust = 0, vjust = 0)+
-  scale_color_brewer(palette="Pastel1")
+  scale_color_brewer(palette="Pastel2")
 #d <- melt(bfs %>% rownames_to_column("type"))
 #ggplot(data = d)+
 #  geom_point(data = d[!(d$type %in% c("BRCA", "COREAD", "OV", "SKCM")),], aes(x = value, y = value), color = "grey")+
@@ -524,7 +525,7 @@ ggplot(data = d)+
   ylim(c(0,5))+
   geom_hline(yintercept=-log10(h0), linetype='dotted', color = "grey66", size = 0.3)+
   annotate("text", x = 0.6, y = -log10(h0), label = paste0("FDR<",as.character(round(fdr_threshold*100)),"%"), hjust = 0, vjust = 0)+
-  scale_color_brewer(palette="Pastel1")
+  scale_color_brewer(palette="Pastel2")
 ```
 
 ```{r othertypes, fig.height=2.5, fig.width=2.5}
