@@ -86,7 +86,7 @@ for i, row in df.iterrows():
 
 # save DataFrame df
 # df.to_csv("metadata/paper/benchmark_paper_exp3.csv", index=True)
-df = pd.read_csv("metadata/paper/benchmark_paper_exp4.csv", index_col=0, keep_default_na=False)
+df = pd.read_csv("metadata/paper/benchmark_paper_exp5.csv", index_col=0, keep_default_na=False)
 
 verbose = False # verbose=T does not work for CE
 example = True # "1159-GDSC2" # False
