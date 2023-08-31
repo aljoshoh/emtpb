@@ -9,6 +9,7 @@ library(readr)
 library(dplyr)
 library(tidyr)
 library(tibble)
+library(purrr)
 
 t_test <- function(x, vadj) {
   x <- na.omit(x)
@@ -28,14 +29,17 @@ tmp_drugs <- full_join(tmp1, tmp2) %>%
   dplyr::select(c("Drug Name","drug","Max Conc")) %>%
   distinct()
 
-experiment_full <- read_csv(paste0(path,"metadata/paper/benchmark_paper_exp3.csv"), na = character())
+experiment_full <- read_csv(paste0(path_calcs,"metadata/paper/benchmark_paper_exp3.csv"), na = character())
+experiment_second <- read_csv(paste0(path_calcs,"metadata/paper/benchmark_paper_exp6.csv"), na = character())
+experiment_full <- bind_rows(experiment_full, experiment_second)
+
 experiment <- experiment_full %>% dplyr::select(-c(...1,drug)) %>% distinct
-write_csv(experiment, file = (paste0(path,"metadata/paper/benchmark_paper_exp3_03_pool.csv")))
+write_csv(experiment, file = (paste0(path,"metadata/paper/benchmark_paper_exp3+6_03_pool.csv")))
 overwrite <- FALSE
 
 # iterate over cancer
 pb <- txtProgressBar(min=1, max=nrow(experiment), style = 3, width = 20) 
-for( which_run in 1:nrow(experiment)){ #1:nrow(experiment) # c(25,81)
+for( which_run in 1:nrow(experiment)){ #1:nrow(experiment) # c(25,81,473)
   setTxtProgressBar(pb, which_run)
   #message(which_run)
   
@@ -75,7 +79,7 @@ for( which_run in 1:nrow(experiment)){ #1:nrow(experiment) # c(25,81)
                       model,"_",
                       score,"_",
                       response_type,
-                      "_v2.rds")
+                      "_v3.rds")
   if(!overwrite & file.exists(save_path)){
     #message(paste0("File for cancertype ",cancertypes[cancertype_index]," exists, skipping.."))
     message("skipping..")
@@ -144,7 +148,7 @@ for( which_run in 1:nrow(experiment)){ #1:nrow(experiment) # c(25,81)
         p <- NA
       }
       
-      if(model == "grf"){
+      if(model %in% c("grf","grfo")){
         if(ncol(model_false)<2){
           l <- c('false'=NA,"true"=NA)
           l_na <- c('false'=NA,"true"=NA)
@@ -169,7 +173,10 @@ for( which_run in 1:nrow(experiment)){ #1:nrow(experiment) # c(25,81)
           
           # get effect (p)
           model_false_hh <- model_false %>% group_by(repeatfold) %>% summarize(p_raw = unique(effects))
-          model_false_hh$p <- lapply(model_false_hh$p_raw, function(x) tryCatch(as.numeric(strsplit(gsub(",,",",",gsub(",,",",",gsub("\\)",",",gsub("\\(",",",gsub("\\]",",",gsub("\\[",",",gsub(" ",",",x))))))),",")[[1]][-1]), error = function(e) x))
+          tmp <- lapply(model_false_hh$p_raw, function(x) eval(parse(text = tryCatch(gsub("\\]",")",gsub("\\[","list(",(gsub("\\)list","),list",gsub("\\(list\\(",",list(list(",gsub("\\(\\[","list(",gsub("\\]\\)",")",gsub("array\\(","\\(",gsub(" ","",gsub("\n","",x)))))))))), error = function(e) x))))
+          tmp <- map(tmp, ~ map(., matrix, nrow = 1, byrow = TRUE))
+          model_false_hh$p <- tmp
+          #model_false_hh$p <- lapply(model_false_hh$p_raw, function(x) tryCatch(as.numeric(strsplit(gsub(",,",",",gsub(",,",",",gsub("\\)",",",gsub("\\(",",",gsub("\\]",",",gsub("\\[",",",gsub(" ",",",x))))))),",")[[1]][-1]), error = function(e) x))
           p <- list(model_false_hh$p)#, model_false_hh$p_raw)
         }
       }

@@ -15,7 +15,7 @@ dir.create("data/depmap")
 
 # CTRPv2.0_2015_ctd2_ExpandedDataset.zip
 # https://ctd2-data.nci.nih.gov/Public/Broad/CTRPv2.0_2015_ctd2_ExpandedDataset/CTRPv2.0_2015_ctd2_ExpandedDataset.zip
-unzip("data/depmap/CTRPv2.0_2015_ctd2_ExpandedDataset.zip")
+#unzip("data/depmap/CTRPv2.0_2015_ctd2_ExpandedDataset.zip")
 
 sample_info <- read.csv("data/depmap/sample_info.csv")
 expression <- read.csv("data/depmap/OmicsExpressionProteinCodingGenesTPMLogp1.csv")

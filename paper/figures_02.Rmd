@@ -1,0 +1,73 @@
+---
+title: "emtpb manuscript figures"
+author: "Alexander Ohnmacht"
+date: "17/02/2023"
+output:
+  pdf_document: 
+    toc: true
+    fig_caption: true
+    number_sections: true
+    fig_width: 12
+    fig_height: 12
+  html_document:
+    toc: true
+    fig_caption: true
+    number_sections: true
+    fig_width: 12
+    fig_height: 12
+---
+
+```{r set, include=FALSE}
+knitr::opts_chunk$set(xtable.comment = FALSE, 
+                      echo=T,
+                      eval=T, 
+                      message = F,
+                      warning=F, 
+                      error = F,
+                      cache = F, 
+                      tidy = F, 
+                      size="footnotesize",
+                      fig.pos='H',
+                      dev = "pdf",
+                      results='markup',
+                      fig.lp='fig:',
+                      fig.align = 'center',
+                      fig.path='figures/v2-', 
+                      cache.path = 'cache/v2-',
+                      tidy.opts=list(width.cutoff=80), 
+                      dev = 'pdf' 
+)
+knitr::opts_chunk$set(echo = TRUE)
+path <- "/Users/alexander.ohnmacht/research/marisa/emtpb/"
+```
+
+```{r setup, include=FALSE}
+library(ggplot2)
+library(ggrepel)
+library(dplyr)
+library(readr)
+library(RColorBrewer)
+library(plotly)
+library(GGally)
+
+df <- readRDS(paste0(path,"metadata/summaries/PERFORMANCES_v3.rds")) # path_calcs
+df$pvalue <- unlist(lapply(df$pvalue, function(x){x}))
+df$effectsize_mean <- unlist(lapply(df$effectsize_mean, function(x){x}))
+df$lower <- unlist(lapply(df$lower, function(x){x}))
+df$upper <- unlist(lapply(df$upper, function(x){x}))
+df <- df %>%
+  dplyr::select(-c(effectsize, inference))
+
+
+drug_meta <- read_csv(paste0(path,"data/screened_compounds_rel_8.4.csv")) %>% 
+  mutate(drugname = DRUG_NAME, target = TARGET, pathway = TARGET_PATHWAY) %>%
+  select(c(drugname, pathway)) %>% # target
+  distinct()
+drug_meta <- drug_meta[!drug_meta$drugname %>% duplicated,]
+df <- left_join(df, drug_meta, by = "drugname")
+```
+
+
+
+
+
