@@ -59,7 +59,7 @@ h <- ggplot(df_4, aes(x = id, y = drugname2, fill = -log10(pvalue))) +
 
 
 
-  # Fig. 2 volcano for all cancer types and drugs (BRCA, SKCM, GBM, LUAD, SCLC, COREAD)
+# Fig. 2 volcano for all cancer types and drugs (BRCA, SKCM, GBM, LUAD, SCLC, COREAD)
 fdr_threshold <- 0.2
 df_3 <- df %>%
   #dplyr::filter(resp_type == "ic50") %>%

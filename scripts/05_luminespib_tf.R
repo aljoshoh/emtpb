@@ -4,90 +4,97 @@ library(ggplot2)
 library(ggrepel)
 library(ggbeeswarm)
 library(tibble)
+library(data.table)
 path <- "/Users/alexander.ohnmacht/research/marisa/emtpb/"
-resp <- read_csv(paste0(path,"metadata/matrix_resp.csv")) #%>% dplyr::select(-c("COSMIC ID","TCGA Desc"))
-EMTscores <- read_csv(paste0(path,"metadata/EMTscores.csv")) #%>% dplyr::select(-c("COSMIC ID","TCGA Desc"))
-rna <- read_csv(paste0(path,"metadata/matrix_exp.csv")) %>% dplyr::filter(`COSMIC ID` %in% (EMTscores$`COSMIC ID`[EMTscores$`TCGA Desc` == "SKCM"]))
-EMT_gs <- readRDS(paste0(path,"metadata/EMT_gs.rds"))
 
-#Pearson:
-if(!file.exists(paste0(path,"metadata/cor_gex_luminespib_v2.rds"))){
-  gex_gdsc_t <- rna
-  skcm_emt <- EMTscores[EMTscores$`TCGA Desc` == "SKCM",]
-  skcm_emt <- left_join(skcm_emt, resp[,c("COSMIC ID","1559-GDSC2"),drop = F])
-  cor_gex_luminespib <- data.frame(gene=character(), R=numeric(), pval=numeric())
-  for(gene in 3:ncol(gex_gdsc_t)){
-    curr_gene <- colnames(gex_gdsc_t)[gene]
-    tmp <- left_join(skcm_emt, gex_gdsc_t[, c(1,gene)], by = c("COSMIC ID" = "COSMIC ID"))
-    tmp_cors <- cor.test(unlist(tmp[,"1559-GDSC2"]), unlist(tmp[,5]))
-    cor_gex_luminespib <- rbind(cor_gex_luminespib, data.frame(gene=curr_gene, R=tmp_cors$estimate, pval=tmp_cors$p.value))
-  }
-  saveRDS(cor_gex_luminespib, file = paste0(path,"metadata/cor_gex_luminespib_v2.rds"))
-}else{
-  cor_gex_luminespib <- readRDS(paste0(path,"metadata/cor_gex_luminespib_v2.rds"))
-}
-
-cor_gex_luminespib$fdr <- p.adjust(cor_gex_luminespib$pval, method = "BH")
-
-cor_gex_luminespib$in_EMT_gs <- ifelse(cor_gex_luminespib$gene %in% EMT_gs$SKCM, "yes", "no")
-cor_gex_luminespib$in_EMT_gs[cor_gex_luminespib$gene == "CDH1"] <- "seed"
-cor_gex_luminespib$in_EMT_gs[cor_gex_luminespib$gene == "CDH2"] <- "seed"
-cor_gex_luminespib$in_EMT_gs[cor_gex_luminespib$gene == "VIM"] <- "seed"
-cor_gex_luminespib$in_EMT_gs[cor_gex_luminespib$gene == "FN1"] <- "seed"
-
-logical_pos <- cor_gex_luminespib$fdr < 0.1 & cor_gex_luminespib$R > 0
-logical_neg <- cor_gex_luminespib$fdr < 0.1 & cor_gex_luminespib$R < 0
-cat(cor_gex_luminespib$gene[logical_pos])
-cat(cor_gex_luminespib$gene[logical_neg])
-ggplot(cor_gex_luminespib, aes(x=R, y=-log10(pval))) + geom_point(size = 0.5) + 
-  geom_text_repel(aes(label=gene, color = in_EMT_gs),data=cor_gex_luminespib[logical_neg|logical_pos,], #fdr < 0.01 and R > 0.6
-                  size = 3) + theme_classic() + ggtitle("Correlation of luminespib drug response and gene expression") + 
-  xlab("Pearson's R") + scale_color_manual(values = c("black", "darkolivegreen3", "darkolivegreen4")) +
-  theme(legend.position = "none")
-
-
-
-# supplement ? boxplot for mitf
-skcm_emt <- skcm_emt %>%
-  mutate(drugresp_strat = case_when(`1559-GDSC2` < median(na.omit(`1559-GDSC2`)) ~ "sensitive", T ~ "resistant"))
-skcm_emt <- full_join(skcm_emt, rna[,c("COSMIC ID","MITF")])
-ggplot(skcm_emt, aes(x = drugresp_strat, y = MITF, color = drugresp_strat)) + geom_beeswarm() + 
-  stat_summary(fun = mean,geom = "crossbar", color = "black", width = 0.5) +
-  scale_color_manual(values = c("resistant" = "darkolivegreen4", "sensitive" = "darkolivegreen2")) + theme_classic() +
-  theme(legend.position = "none") + xlab("drug response") + ylab("MITF expression level") +
-  ggtitle("MITF expression and response to luminespib",
-          subtitle = paste("Welch t-test p-value:", format(round(t.test(skcm_emt$MITF[skcm_emt$drugresp_strat == "sensitive"], skcm_emt$MITF[skcm_emt$drugresp_strat == "resistant"])$p.value, digits = 6), scientific = F)))
-
-
-#### limma for enrichments ? SKCM
-rna <- read_csv(paste0(path,"metadata/matrix_exp.csv")) %>% dplyr::filter(`COSMIC ID` %in% (EMTscores$`COSMIC ID`[EMTscores$`TCGA Desc` == "SKCM"]))
-gex_gdsc_t <- rna
-skcm_emt <- EMTscores[EMTscores$`TCGA Desc` == "SKCM",]
-skcm_emt <- left_join(skcm_emt, resp[,c("COSMIC ID","1559-GDSC2"),drop = F])
-tmp <- left_join(skcm_emt, gex_gdsc_t, by = c("COSMIC ID" = "COSMIC ID"))
-tmp <- na.omit(tmp)
-exp_skcm <- tmp[,-c(1:5)]
-luminespib_resp_skcm <- tmp$`1559-GDSC2`
-
-my_design <- model.matrix(~luminespib_resp_skcm)
-library(limma)
-my_fit <- lmFit(exp_skcm%>%as.matrix%>%t, my_design)
-my_ebayes <- eBayes(my_fit)
-my_results <- topTable(my_ebayes, n=nrow(my_ebayes))%>%rownames_to_column("gene")
-
-
-limma_luminespib_pos <- my_results$gene[(my_results$adj.P.Val < 0.1)&(my_results$logFC > 0)]
-limma_luminespib_neg <- my_results$gene[(my_results$adj.P.Val < 0.1)&(my_results$logFC < 0)]
-
+# specifics
 library(enrichR)
-terms <- c("ARCHS4_Tissues","ChEA_2022")
-terms <- c("ARCHS4_Tissues","ChEA_2022","RNAseq_Automatic_GEO_Signatures_Human_Up","RNAseq_Automatic_GEO_Signatures_Human_Down","LINCS_L1000_CRISPR_KO_Consensus_Sigs")
-enriched_pos <- enrichr(limma_luminespib_pos, terms); enriched_pos <- do.call(rbind, enriched_pos); enriched_pos$sign <- "positive"
-enriched_neg <- enrichr(limma_luminespib_neg, terms); enriched_neg <- do.call(rbind, enriched_neg); enriched_neg$sign <- "negative"
-enriched <- rbind(enriched_pos, enriched_neg)
+library(limma)
+#rna <- read_csv(paste0(path,"metadata/matrix_exp.csv")) %>% dplyr::filter(`COSMIC ID` %in% (EMTscores$`COSMIC ID`[EMTscores$`TCGA Desc` == "SKCM"]))
+#EMT_gs <- readRDS(paste0(path,"metadata/EMT_gs.rds"))
+rna <- read_csv(paste0(path,"metadata/matrix_exp.csv"))
+
+# thresholds
+fdr_threshold <- 0.2
+howmanyhits <- 3
+
+# read results
+df <- readRDS(paste0(path,"metadata/summaries/PERFORMANCES_v3.rds")) # path_calcs
+df$pvalue <- unlist(lapply(df$pvalue, function(x){x}))
+df$effectsize_mean <- unlist(lapply(df$effectsize_mean, function(x){x}))
+df$lower <- unlist(lapply(df$lower, function(x){x}))
+df$upper <- unlist(lapply(df$upper, function(x){x}))
+df <- df %>%
+  dplyr::select(-c(effectsize, inference))
+df_3 <- df %>%
+  #dplyr::filter(resp_type == "ic50") %>%
+  dplyr::filter(!is.na(fdr)) %>%
+  #dplyr::filter(score == "mak") %>%
+  dplyr::filter(TCGA != "PANCAN") %>%
+  dplyr::filter(method %in% c("grfo","eln")) %>%
+  dplyr::filter(TCGA %in% as.character(unlist(unique(na.omit(df[(df$method == "eln")&(df$fdr < fdr_threshold),"TCGA"]))))) 
+df_3 <- df_3 %>%
+  dplyr::select(c(method, drugname, drug,TCGA,score,pvalue,fdr,resp_type,cor_emt,effectsize_mean,delta, lower, upper)) %>%
+  tidyr::pivot_wider(names_from = method, values_from = c(pvalue,fdr,cor_emt,effectsize_mean, lower, upper)) %>%
+  #dplyr::filter(drug == "1559-GDSC2") %>%
+  mutate(id = paste0(drugname," (",TCGA,", ",resp_type,", ",score,")")) %>%
+  mutate(strat = paste0(drug,"-",score,"-",resp_type,"-",TCGA)) %>% 
+  mutate(filt = paste0(drugname,"-",TCGA))
+label_data <- df_3[(df_3$fdr_eln < fdr_threshold)&(df_3$filt %in% names(which(table(df_3[df_3$fdr_eln < fdr_threshold,"filt"] ) >=howmanyhits))),] %>%
+  filter(!is.na(fdr_eln)) %>% 
+  dplyr::select(c(drugname,drug,TCGA,resp_type)) %>% distinct
+  
+
+# loop over results
+lenriched <- list()
+for(j in 1:nrow(label_data)){
+  print(round(j/nrow(label_data)*100))
+  ct <- label_data$TCGA[j]
+  dr <- label_data$drug[j]
+  resp_type <- label_data$resp_type[j]
+  response_type <- ifelse(label_data$resp_type[j] == "ic50","","_auc")
+  score <- ifelse(label_data$score[j] == "mak","",paste0("_",label_data$score[j]))
+  resp <- suppressMessages(read_csv(paste0(path,"metadata/matrix_resp",response_type,".csv"))) #%>% dplyr::select(-c("COSMIC ID","TCGA Desc"))
+  EMTscores <- suppressMessages(read_csv(paste0(path,"metadata/EMTscores",score,".csv"))) #%>% dplyr::select(-c("COSMIC ID","TCGA Desc"))
+  gex_gdsc_t <- rna %>% dplyr::filter(`COSMIC ID` %in% (EMTscores$`COSMIC ID`[EMTscores$`TCGA Desc` == ct]))
+  skcm_emt <- EMTscores[EMTscores$`TCGA Desc` == ct,]
+  skcm_emt <- left_join(skcm_emt, resp[,c("COSMIC ID",dr),drop = F])
+  tmp <- left_join(skcm_emt, gex_gdsc_t, by = c("COSMIC ID" = "COSMIC ID"))
+  tmp <- na.omit(tmp)
+  exp_skcm <- tmp[,-c(1:5)]
+  luminespib_resp_skcm <- unlist(tmp[dr])
+  
+  my_design <- model.matrix(~luminespib_resp_skcm)
+  my_fit <- lmFit(exp_skcm%>%as.matrix%>%t, my_design)
+  my_ebayes <- eBayes(my_fit)
+  my_results <- suppressMessages(topTable(my_ebayes, n=nrow(my_ebayes))%>%rownames_to_column("gene"))
+  
+  limma_luminespib_pos <- my_results$gene[(my_results$adj.P.Val < 0.1)&(my_results$logFC > 0)]
+  limma_luminespib_neg <- my_results$gene[(my_results$adj.P.Val < 0.1)&(my_results$logFC < 0)]
+  
+  if((ct == "SKCM") & (dr == "1559-GDSC2") & (resp_type == "auc")){
+    limma_luminespib <- limma_luminespib_pos
+  }
+  
+  # enrichment
+  #terms <- c("ARCHS4_Tissues","ChEA_2022","RNAseq_Automatic_GEO_Signatures_Human_Up","RNAseq_Automatic_GEO_Signatures_Human_Down","LINCS_L1000_CRISPR_KO_Consensus_Sigs")
+  terms <- "ChEA_2022"
+  enriched_pos <- enrichr(limma_luminespib_pos, terms); enriched_pos <- do.call(rbind, enriched_pos); enriched_pos$sign <- "positive"
+  enriched_neg <- enrichr(limma_luminespib_neg, terms); enriched_neg <- do.call(rbind, enriched_neg); enriched_neg$sign <- "negative"
+  enriched <- rbind(enriched_pos, enriched_neg)
+  enriched$cancertype <- ct
+  enriched$drug <- dr
+  enriched$drugname <-  label_data$drugname[j]
+  
+  lenriched[[j]] <- enriched
+}
+enr <- rbindlist(lenriched)
+saveRDS(enr, file = "emtpb/metadata/paper/tf_target_enrichments.rds")
+saveRDS(limma_luminespib, file = "emtpb/metadata/paper/tf_diff_genes_luminespib.rds")
 
 
-strsplit(enriched$Genes[enriched$Term == "MITF 21258399 ChIP-Seq MELANOMA Human"],";")
+# genes MITF targets
+#strsplit(enr_luminespib$Genes[enr_luminespib$Term == "MITF 21258399 ChIP-Seq MELANOMA Human"][1],";")
 
 colors_genes <- c(limma_luminespib_neg, limma_luminespib_pos)
 names(colors_genes) = colors_genes
@@ -95,7 +102,7 @@ colors_genes[rep(T, length(colors_genes))] <- "black"
 colors_genes[names(colors_genes) %in% strsplit(enriched$Genes[enriched$Term == "MITF 21258399 ChIP-Seq MELANOMA Human" & (enriched$sign == "positive")],";")[[1]]] <- "deepskyblue"
 colors_genes[names(colors_genes) %in% strsplit(enriched$Genes[enriched$Term == "FIBROBLAST" & (enriched$sign == "negative")],";")[[1]]] <- "darkorange"
 colors_genes[names(colors_genes) %in% c("CDH1","CDH2")] <- "deepskyblue4"
-saveRDS(colors_genes, file = "metadata/colors_genes_enrichr_luminespib_melanoma.rds")
+saveRDS(colors_genes, file = "metadata/paper/colors_genes_enrichr_luminespib_melanoma.rds")
 
 
 
