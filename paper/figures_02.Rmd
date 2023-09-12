@@ -64,6 +64,7 @@ library(ComplexHeatmap)
 library(circlize)
 library(shades)
 library(viridis)
+library(gridExtra)
 
 validation_aucs <- "metadata/goeksu/exp1/AUCs.xlsx"
 validation_ic50s <- "metadata/goeksu/exp1/IC50s.xlsx"
@@ -213,12 +214,12 @@ preds <- full_join(model_true, model_false, by = "COSMIC ID.y") %>%dplyr::rename
 q <- full_join(emtp %>% filter(`TCGA Desc` == ct), resp_auc %>% filter(`TCGA Desc` == ct), by="COSMIC ID")
 q <- left_join(preds, q, by = "COSMIC ID")
 ggplot(q) + 
-  stat_smooth(aes(x = truth.x, y = preds.x), color = "gray45", fill = NA,
+  stat_smooth(aes(x = truth.x, y = preds.x), color = "grey78", fill = NA,
               method = "lm") + 
-  geom_point(aes(x = truth.x, y = preds.x), color = "gray45") +
-  stat_smooth(aes(x = truth.x, y = preds.y), color = "darkgreen", fill = NA,
+  geom_point(aes(x = truth.x, y = preds.x), color = "grey78") +
+  stat_smooth(aes(x = truth.x, y = preds.y), color = "grey28", fill = NA,
               method = "lm") +
-  geom_point(aes(x = truth.x, y = preds.y), color = "darkgreen") + 
+  geom_point(aes(x = truth.x, y = preds.y), color = "grey28") + 
   theme_minimal() + 
   xlab("observed AUC") + ylab("predicted AUC") + ggtitle("Luminespib") +
   #theme(plot.title = element_text(size = 36),
@@ -226,7 +227,7 @@ ggplot(q) +
   #      axis.text = element_text(size = 15)) +
   annotate(geom = "text", x = 0.5, y = 0.87, color = "gray50",hjust = 0,
            label = paste("r =", round(cor.test(q$truth.x, q$preds.x)$estimate, digits = 2))) +
-  annotate(geom = "text", x = 0.5, y = 0.9, color = "darkgreen", hjust = 0,
+  annotate(geom = "text", x = 0.5, y = 0.9, color = "grey28", hjust = 0,
            label = paste("r =", round(cor.test(q$truth.x, q$preds.y)$estimate, digits = 2)))
 ```
 
@@ -259,12 +260,12 @@ q <- full_join(emtp %>% filter(`TCGA Desc` == ct), resp_ic50 %>% filter(`TCGA De
 q <- left_join(preds, q, by = "COSMIC ID")
 
 ggplot(q) + 
-  stat_smooth(aes(x = exp(truth.x), y = exp(preds.x)), color = "gray45", fill = NA,
+  stat_smooth(aes(x = exp(truth.x), y = exp(preds.x)), color = "grey78", fill = NA,
               method = "lm") + 
-  geom_point(aes(x = exp(truth.x), y = exp(preds.x)), color = "gray45") +
-  stat_smooth(aes(x = exp(truth.y), y = exp(preds.y)), color = "darkgreen", fill = NA,
+  geom_point(aes(x = exp(truth.x), y = exp(preds.x)), color = "grey78") +
+  stat_smooth(aes(x = exp(truth.y), y = exp(preds.y)), color = "grey28", fill = NA,
               method = "lm") +
-  geom_point(aes(x = exp(truth.y), y = exp(preds.y)), color = "darkgreen") + 
+  geom_point(aes(x = exp(truth.y), y = exp(preds.y)), color = "grey28") + 
   theme_minimal() + 
   xlab("observed IC50 [µM]") + ylab("predicted IC50 [µM]") + ggtitle("Luminespib") +
   #theme(plot.title = element_text(size = 36),
@@ -272,7 +273,7 @@ ggplot(q) +
   #      axis.text = element_text(size = 15)) +
   annotate(geom = "text", x = 3, y = 1.0, color = "gray50",hjust = 0,
            label = paste("r =", round(cor.test(q$truth.x, q$preds.x)$estimate, digits = 2))) +
-  annotate(geom = "text", x = 3, y = 1.4, color = "darkgreen", hjust = 0,
+  annotate(geom = "text", x = 3, y = 1.4, color = "grey28", hjust = 0,
            label = paste("r =", round(cor.test(q$truth.x, q$preds.y)$estimate, digits = 2)))+
   scale_x_log10(
    breaks = scales::breaks_log(n = 5),
@@ -294,12 +295,13 @@ df_3 <- df %>%
   dplyr::filter(!is.na(fdr)) %>%
   dplyr::filter(score == "mak") %>%
   dplyr::filter(method %in% c("grfo","eln")) %>%
-  dplyr::filter(TCGA == "SKCM") 
+  dplyr::filter(TCGA == "SKCM")
+df_3 <- df_3 %>% dplyr::mutate(score = dplyr::recode(score,"tan"="TAN","mak"="MAK","gsva"="GSVA","secrier"="TW"))
 df_3 <- df_3 %>%
   dplyr::select(c(method, drugname, drug,TCGA,score,pvalue,fdr,resp_type,cor_emt,effectsize_mean,delta, lower, upper)) %>%
   tidyr::pivot_wider(names_from = method, values_from = c(pvalue,fdr,cor_emt,effectsize_mean, lower, upper)) %>%
   #dplyr::filter(drug == "1559-GDSC2") %>%
-  mutate(id = paste0(drugname," (",TCGA,",",resp_type,", ",score,")")) %>%
+  mutate(id = paste0(drugname," (",TCGA,", ",resp_type,", ",score,")")) %>%
   mutate(strat = paste0(drug,"-",score,"-",resp_type,"-",TCGA)) %>% 
   mutate(filt = paste0(drugname,"-",TCGA))
 df_3 <- df_3 %>% group_by(c(strat)) %>% summarize(effectsize_grf = na.omit(effectsize_mean_grfo), 
@@ -339,7 +341,7 @@ p <- ggplot()+
 p
 ```
 
-```{r causal_effect_skcm_auc, fig.width=3, fig.height=5}
+```{r causal_effect_skcm_auc, fig.width=3, fig.height=3.5}
 x <- "id"
 y <- "effectsize_grf"
 df_4 <- (df_3[df_3$resp_type == "auc",])
@@ -356,7 +358,7 @@ p <- ggplot(data = df_4)+
     theme_minimal()+
     theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1), plot.margin = margin(t = 0, r = 0, b = 0, l = 50, unit = "pt"))+
     xlab("")+
-    ylab("Standardised estimated causal effect")
+    ylab("Standardised estimated\ncausal effect")
 p
 ```
 
@@ -383,7 +385,7 @@ for(i in 1:nrow(df_5)){
 }
 
 # plot confidence band for luminespib AUC
-df_6 <- df_5[df_5$id == "Luminespib (SKCM,auc, mak)",]
+df_6 <- df_5[df_5$id == "Luminespib (SKCM, auc, MAK)",]
 error.measurement <- abs(df_6$effectsize_grf-df_6$upper)
 ribbondata<- data.frame(x=c(0, 2),
                         ymin=c(  0 - error.measurement,
@@ -415,11 +417,12 @@ df_3 <- df %>%
   dplyr::filter(score == "mak") %>%
   dplyr::filter(method %in% c("grfo","eln")) %>%
   dplyr::filter(TCGA == "SKCM") 
+df_3 <- df_3 %>% dplyr::mutate(score = dplyr::recode(score,"tan"="TAN","mak"="MAK","gsva"="GSVA","secrier"="TW"))
 df_3 <- df_3 %>%
   dplyr::select(c(method, drugname, drug,TCGA,score,pvalue,fdr,resp_type,cor_emt,effectsize_mean,delta, lower, upper)) %>%
   tidyr::pivot_wider(names_from = method, values_from = c(pvalue,fdr,cor_emt,effectsize_mean, lower, upper)) %>%
   #dplyr::filter(drug == "1559-GDSC2") %>%
-  mutate(id = paste0(drugname," (",TCGA,",",resp_type,", ",score,")")) %>%
+  mutate(id = paste0(drugname," (",TCGA,", ",resp_type,", ",score,")")) %>%
   mutate(strat = paste0(drug,"-",score,"-",resp_type,"-",TCGA)) %>% 
   mutate(filt = paste0(drugname,"-",TCGA))
 df_3 <- df_3 %>% group_by(c(strat)) %>% summarize(effectsize_grf = na.omit(effectsize_mean_grfo), 
@@ -459,7 +462,7 @@ p <- ggplot()+
 p
 ```
 
-```{r causal_effect_skcm_ic50, fig.width=2, fig.height=5}
+```{r causal_effect_skcm_ic50, fig.width=2, fig.height=3.5}
 x <- "id"
 y <- "effectsize_grf"
 df_4 <- (df_3[df_3$resp_type == "ic50",])
@@ -476,7 +479,7 @@ p <- ggplot(data = df_4)+
     theme_minimal()+
     theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1), plot.margin = margin(t = 0, r = 0, b = 0, l = 50, unit = "pt"))+
     xlab("")+
-    ylab("Standardised estimated causal effect")
+    ylab("Standardised estimated\ncausal effect")
 p
 ```
 
@@ -486,7 +489,9 @@ my_dens <- function(data, mapping, ...) {
   ggplot(data = data, mapping=mapping) +
     geom_density(..., alpha = 1) 
 }
-ggp <- ggpairs(emtp, columns = 2:ncol(emtp), aes(colour=`TCGA Desc`),
+emtpp <- emtp
+colnames(emtpp) = c("COSMIC ID","MAK","GSVA","TAN","TW","TCGA Desc")
+ggp <- ggpairs(emtpp, columns = 2:ncol(emtp), aes(colour=`TCGA Desc`),
         diag = list(continuous = my_dens)
         ) + scale_fill_manual(values = rev(pastel_colors))+scale_color_manual(values = rev(pastel_colors))+
   theme_minimal()
@@ -614,6 +619,7 @@ df_3 <- df %>%
   dplyr::filter(TCGA != "PANCAN") %>%
   dplyr::filter(method %in% c("grfo","eln")) %>%
   dplyr::filter(TCGA %in% as.character(unlist(unique(na.omit(df[(df$method == "eln")&(df$fdr < fdr_threshold),"TCGA"]))))) 
+df_3 <- df_3 %>% dplyr::mutate(score = dplyr::recode(score,"tan"="TAN","mak"="MAK","gsva"="GSVA","secrier"="TW"))
 df_3 <- df_3 %>%
   dplyr::select(c(method, drugname, drug,TCGA,score,pvalue,fdr,resp_type,cor_emt,effectsize_mean,delta, lower, upper)) %>%
   tidyr::pivot_wider(names_from = method, values_from = c(pvalue,fdr,cor_emt,effectsize_mean, lower, upper)) %>%
@@ -659,14 +665,14 @@ p <- ggplot()+
 p
 ```
 
-```{r causal_effect_auc, fig.width=4.0, fig.height=5}
+```{r causal_effect_auc, fig.width=4.0, fig.height=3.5}
 x <- "id"
 y <- "effectsize_grfo"
 df_4 <- (df_3[df_3$resp_type == "auc",])
 df_4 <- df_4[(df_4$`c(strat)` %in% label_data$`c(strat)`),]
 
-df_4$id[1] <- "AZD7762 (BRCA, auc, gsva, 2)"
-df_4$id[8] <- "AZD7762 (BRCA, auc, gsva, 1)"
+df_4$id[1] <- "AZD7762 (BRCA, auc, GSVA, 2)"
+df_4$id[8] <- "AZD7762 (BRCA, auc, GSVA, 1)"
 p <- ggplot(data = df_4)+
     geom_errorbar(aes(x = reorder(!!sym(x), !!sym(y)), ymin = lower, ymax=upper), color="black", alpha = 1) +
     geom_line(aes(x = reorder(!!sym(x), !!sym(y)), y = !!sym(y), group = 1), color = "grey")+ 
@@ -678,11 +684,11 @@ p <- ggplot(data = df_4)+
     theme_minimal()+
     theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1), plot.margin = margin(t = 0, r = 0, b = 0, l = 50, unit = "pt"))+
     xlab("")+
-    ylab("Standardised estimated causal effect")
+    ylab("Standardised estimated\ncausal effect")
 p
 ```
 
-```{r causal_effect_ic50, fig.width=3.5, fig.height=5}
+```{r causal_effect_ic50, fig.width=3.5, fig.height=3.5}
 x <- "id"
 y <- "effectsize_grfo"
 df_4 <- (df_3[df_3$resp_type == "ic50",])
@@ -701,7 +707,7 @@ p <- ggplot(data = df_4)+
     theme_minimal()+
     theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1), plot.margin = margin(t = 0, r = 0, b = 0, l = 50, unit = "pt"))+
     xlab("")+
-    ylab("Standardised estimated causal effect")
+    ylab("Standardised estimated\ncausal effect")
 p
 ```
 
@@ -710,7 +716,9 @@ p
 df_4 <- df_3
 df_4 <- df_4[(df_4$`c(strat)` %in% label_data$`c(strat)`),]
 
-dat <- emtp %>% 
+emtpp <- emtp
+colnames(emtpp) = c("COSMIC ID","MAK","GSVA","TAN","TW","TCGA Desc")
+dat <- emtpp %>% 
   filter(`TCGA Desc` == "LUAD")
 sig_drugs <- unlist(lapply(df_4$`c(strat)`[df_4$TCGA == "LUAD"], function(x) paste(strsplit(x,"-")[[1]][1:2],collapse="-"))) # skcm, auc, mak
 dat <- left_join(dat,resp_ic50[,colnames(resp_auc) %in% c(sig_drugs,"COSMIC ID")], by = "COSMIC ID")
@@ -718,15 +726,15 @@ dat <- left_join(dat,resp_ic50[,colnames(resp_auc) %in% c(sig_drugs,"COSMIC ID")
 luad_emt <- dat %>%
   #mutate(mak = case_when(mak < median(na.omit(mak)) ~ "epithelial", T ~ "mesenchymal")) %>%
   mutate(GSK269962A = case_when(`1192-GDSC1` < median(na.omit(`1192-GDSC1`)) ~ "sensitive", T ~ "resistant")) %>%
-  dplyr::select(c("COSMIC ID","mak","gsva","tan","tagliazucchi","1192-GDSC1")) %>%
+  dplyr::select(c("COSMIC ID","MAK","GSVA","TAN","TW","1192-GDSC1")) %>%
   pivot_longer(cols = c("1192-GDSC1")) %>%
   dplyr::rename(drug = name, resp = value)
   #pivot_longer(cols = c("mak","gsva","tan","tagliazucchi"))
   #dplyr::select(-c("gsva","tan","tagliazucchi")) %>% distinct
 
 data <- luad_emt
-cortest <- cor.test(data$mak, data$resp)
-ggplot(data, aes(x=mak, y = exp(data$resp))) + 
+cortest <- cor.test(data$MAK, data$resp)
+ggplot(data, aes(x=MAK, y = exp(data$resp))) + 
   geom_smooth(method = "lm", color = "gray50", fill = "gray65") + geom_point() +
   xlab("EMT score") + ylab("GSK269962A IC50 [µM]") + ggtitle("GSK269962A response in LUAD") +
   theme_minimal() + #+ theme(plot.title = element_text(size = 20),
@@ -736,7 +744,7 @@ ggplot(data, aes(x=mak, y = exp(data$resp))) +
                   #        strip.text = element_text(size = 18),
                   #        legend.position = "none") 
   annotate("text", label = paste0("r = ",as.numeric(round(cortest$estimate, 2)),"\n","p = ",round(cortest$p.value, 6)) , 
-           x = min(na.omit(data$mak)), y = min(na.omit(exp(data$resp))*3), vjust = 1, hjust = 0)+
+           x = min(na.omit(data$MAK)), y = min(na.omit(exp(data$resp))*3), vjust = 1, hjust = 0)+
   scale_y_log10(
         breaks = scales::trans_breaks("log10", function(x) 10^x),
         labels = scales::trans_format("log10", scales::math_format(10^.x)),
@@ -745,14 +753,18 @@ ggplot(data, aes(x=mak, y = exp(data$resp))) +
   annotation_logticks(sides = "l")
 ```
 
-```{r brca_subtypes, fig.width=5, fig.height=3}
+```{r brca_subtypes, fig.width=4, fig.height=4}
 #brca subtype50s Jaaks 2023 (only hit for AUC)
 brca_subtypes <- read_excel(paste0(path,"metadata/paper/41586_2022_4437_MOESM5_ESM.xlsx"))
+mut_brca <-read_csv(paste0(path,"metadata/matrix_mut_BRCA.csv"))
 
+#emtpp <- emtp
+#colnames(emtpp) = c("COSMIC ID","MAK","GSVA","TAN","TW","TCGA Desc")
 dat <- emtp %>% 
   filter(`TCGA Desc` == "BRCA")
 dat <- left_join(dat, gex[,c("COSMIC ID","ESR1")], by = "COSMIC ID")
 dat <- left_join(dat, brca_subtypes, by = "COSMIC ID")
+dat <- left_join(dat, mut_brca, by = "COSMIC ID")
 sig_drugs <- unlist(lapply(df_4$`c(strat)`, function(x) paste(strsplit(x,"-")[[1]][1:2],collapse="-"))) # skcm, auc, mak
 dat <- left_join(dat,resp_auc[,colnames(resp_auc) %in% c(sig_drugs,"COSMIC ID")], by = "COSMIC ID")
                       
@@ -760,7 +772,7 @@ brca_emt <- dat %>%
   mutate(`AZD7762 (1)` = case_when(`1022-GDSC2` < median(na.omit(`1022-GDSC2`)) ~ "sensitive", T ~ "resistant")) %>%
   mutate(`AZD7762 (2)` = case_when(`1402-GDSC1` < median(na.omit(`1402-GDSC1`)) ~ "sensitive", T ~ "resistant")) %>%
   #mutate(mak = case_when(mak < median(na.omit(mak)) ~ "epithelial", T ~ "mesenchymal")) %>%
-  dplyr::select(c("COSMIC ID","mak","gsva","tan","tagliazucchi","ESR1","AZD7762 (1)","AZD7762 (2)","PAM50","1022-GDSC2","1402-GDSC1")) %>%
+  dplyr::select(c("COSMIC ID","mak","gsva","tan","tagliazucchi","ESR1","AZD7762 (1)","AZD7762 (2)","PAM50","1022-GDSC2","1402-GDSC1","BRCA1_mut","BRCA2_mut")) %>%
   pivot_longer(cols = c("AZD7762 (1)","AZD7762 (2)")) %>%
   dplyr::rename(drug = name, resp = value) %>%
   #pivot_longer(cols = c("mak","gsva","tan","secrier"))
@@ -798,10 +810,65 @@ stat.test.anova <- brca_emt %>%
     add_significance() 
 ggboxplot(brca_emt%>%dplyr::select(-drug)%>%distinct, x = "PAM50", y = "mak", color = "PAM50", add = "jitter")+theme_minimal()+
   scale_color_manual(values = c("resistant" = "darkolivegreen4", "sensitive" = "darkolivegreen2"))+
-  theme(legend.position = "none") + xlab("BRCA subtype") + ylab("EMT score (mak)")+
+  theme(legend.position = "none") + xlab("BRCA subtype") + ylab("EMT score")+
   stat_pvalue_manual(stat.test, bracket.nudge.y = 0.4)+
   labs(
-    subtitle = get_test_label(stat.test.anova, detailed = TRUE))
+    subtitle = get_test_label(stat.test.anova, detailed = TRUE))+
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1), plot.margin = margin(t = 0, r = 0, b = 0, l = 50, unit = "pt"))
+```
+
+```{r brca_subtypes_2, fig.width=4.5, fig.height=4.5}
+stat.test <- brca_emt %>%
+    dplyr::select(-drug) %>%
+    distinct %>%
+    group_by(PAM50) %>%
+    filter(n()>1) %>%
+    ungroup() %>%
+    mutate(PAM50 = factor(PAM50)) %>%
+    t_test(`1022-GDSC2` ~ PAM50) %>%
+    adjust_pvalue(method = "none") %>%
+    add_significance() %>%
+    add_y_position()
+stat.test.anova <- brca_emt %>%
+    dplyr::select(-drug) %>%
+    distinct %>%
+    #anova_test(mak ~ PAM50) %>%
+    anova_test(`1022-GDSC2` ~ PAM50) %>%
+    adjust_pvalue(method = "none") %>%
+    add_significance() 
+brca_emt$`BRCA1/2 mutation` <- factor(sign(brca_emt$BRCA1_mut+brca_emt$BRCA2_mut))
+ggboxplot(brca_emt%>%dplyr::select(-drug)%>%distinct, x = "PAM50", y = "1022-GDSC2", color = "mak", shape = "BRCA1/2 mutation", add = "jitter")+
+    theme_minimal()+
+    #theme(legend.position = "none") +
+    xlab("BRCA subtype") + ylab("log(IC50")+
+    labs(
+        subtitle = get_test_label(stat.test.anova, detailed = TRUE))+
+    #stat_pvalue_manual(stat.test, bracket.nudge.y = 0.05)+
+    theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1), plot.margin = margin(t = 0, r = 0, b = 0, l = 50, unit = "pt"))+
+  scale_color_gradient(high = "navyblue", low = "orange", name = "EMT score")
+  #   scale_y_log10(
+  #       breaks = scales::trans_breaks("log10", function(x) 10^x),
+  #       labels = scales::trans_format("log10", scales::math_format(10^.x)),
+  #       limits = c(-20,5))+
+  #annotation_logticks()
+
+summary(lm(data = brca_emt[brca_emt$drug == "AZD7762 (2)",],formula =  `1022-GDSC2` ~ ESR1 + PAM50 + mak))
+summary(lm(data = brca_emt[brca_emt$drug == "AZD7762 (2)",],formula =  `1022-GDSC2` ~ BRCA1_mut + BRCA2_mut + ESR1 + PAM50 + mak))
+stat.test.anova <- brca_emt[brca_emt$drug == "AZD7762 (2)",] %>%
+    dplyr::select(-drug) %>%
+    distinct %>%
+    #anova_test(mak ~ PAM50) %>%
+    anova_test(`1022-GDSC2` ~ PAM50 + BRCA1_mut + BRCA2_mut + mak) %>%
+    adjust_pvalue(method = "none") %>%
+    add_significance() 
+ggplot((brca_emt%>%dplyr::select(-drug))[(brca_emt$PAM50 == "Basal")&(brca_emt$`BRCA1/2 mutation` == 0),]%>%distinct, aes(x = mak, y = `1022-GDSC2`)) +
+    geom_point()+
+    theme_minimal()+
+    theme(legend.position = "none") + xlab("BRCA subtype") + ylab("log(IC50")+
+    #stat_pvalue_manual(stat.test, bracket.nudge.y = 0.4)+
+    labs(
+        subtitle = get_test_label(stat.test.anova, detailed = TRUE))+
+    theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1), plot.margin = margin(t = 0, r = 0, b = 0, l = 50, unit = "pt"))
 ```
 
 ```{r hsp90_17aag_auc, fig.width=2, fig.height=2}
@@ -985,11 +1052,12 @@ df_3 <- df %>%
   dplyr::filter(score == "mak") %>%
   dplyr::filter(method %in% c("grfo","eln")) %>%
   dplyr::filter(TCGA == "SKCM") 
+df_3 <- df_3 %>% dplyr::mutate(score = dplyr::recode(score,"tan"="TAN","mak"="MAK","gsva"="GSVA","secrier"="TW"))
 df_3 <- df_3 %>%
   dplyr::select(c(method, drugname, drug,TCGA,score,pvalue,fdr,resp_type,cor_emt,effectsize_mean,delta, lower, upper)) %>%
   tidyr::pivot_wider(names_from = method, values_from = c(pvalue,fdr,cor_emt,effectsize_mean, lower, upper)) %>%
   #dplyr::filter(drug == "1559-GDSC2") %>%
-  mutate(id = paste0(drugname," (",TCGA,",",resp_type,", ",score,")")) %>%
+  mutate(id = paste0(drugname," (",TCGA,", ",resp_type,", ",score,")")) %>%
   mutate(strat = paste0(drug,"-",score,"-",resp_type,"-",TCGA)) %>% 
   mutate(filt = paste0(drugname,"-",TCGA))
 df_3 <- df_3 %>% group_by(c(strat)) %>% summarize(effectsize_grf = na.omit(effectsize_mean_grfo), 
@@ -1033,7 +1101,7 @@ for(i in 1:nrow(df_5)){
 
 ```{r validation_summary_auc, fig.height=3, fig.width=2.5}
 # plot confidence band for luminespib AUC
-df_6 <- df_5[df_5$`c(strat)` == "1559-GDSC2-mak-auc-SKCM",]
+df_6 <- df_5[df_5$`c(strat)` == "1559-GDSC2-MAK-auc-SKCM",]
 error.measurement <- abs(df_6$effectsize_grf-df_6$upper)
 ribbondata<- data.frame(x=c(0, 1),
                         ymin=c(  0 - error.measurement,
@@ -1093,13 +1161,13 @@ ggplot(data = Vredci)+
   ylab("delta AUC")+
   xlab("Cell line")+
   scale_color_manual(values = c("mes."="navyblue","epi."="darkorange","null"="black"))+
-  scale_shape_manual(values = c(21, 24)) +
+  scale_shape_manual(values = c(NA, 24)) +
   theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1))
 ```
 
 ```{r validation_summary_ic50, fig.height=3, fig.width=2.5}
 # plot confidence band for luminespib AUC
-df_6 <- df_5[df_5$`c(strat)` == "1559-GDSC2-mak-ic50-SKCM",]
+df_6 <- df_5[df_5$`c(strat)` == "1559-GDSC2-MAK-ic50-SKCM",]
 error.measurement <- abs(df_6$effectsize_grf-df_6$upper)
 ribbondata<- data.frame(x=c(0, 1),
                         ymin=c(  0 - error.measurement,
@@ -1160,7 +1228,7 @@ ggplot(data = Vredci)+
   ylab("delta log(IC50)")+
   xlab("Cell line")+
   scale_color_manual(values = c("mes."="navyblue","epi."="darkorange","null"="black"))+
-  scale_shape_manual(values = c(21, 24)) +
+  scale_shape_manual(values = c(NA, 24)) +
   theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1))
 ```
 
@@ -1195,6 +1263,27 @@ plot_drug(name_drug = "1426-GDSC1",
 EMTscores_mak <- suppressMessages(read_csv(paste0(path,"metadata/EMT_gs","",".rds")))
 
 ```
+
+```{r overall_signatures_luminespib}
+# test for differential signature
+file_lincs_enrichment <- "metadata/lincs/luminespib_enrichments_all.rds"
+t<- readRDS(paste0(path,file_lincs_enrichment))
+t$emt <- unlist(lapply(t$id, function(x) strsplit(x," ")[[1]][1]))
+t$updn <- unlist(lapply(t$id, function(x) strsplit(x," ")[[1]][2]))
+t <- t[unlist(lapply(t$Term, function(x) grepl("GO:",x,fixed = TRUE))),]
+t
+```
+
+```{r common_signatures_chir_99021_luminespib}
+# test for differential signature
+file_lincs_enrichment <- "metadata/lincs/chir_990221_luminespib_enrichments_common_dn.rds"
+t<- readRDS(paste0(path,file_lincs_enrichment))
+t$emt <- unlist(lapply(t$id, function(x) strsplit(x," ")[[1]][1]))
+t$updn <- unlist(lapply(t$id, function(x) strsplit(x," ")[[1]][2]))
+t <- t[unlist(lapply(t$Term, function(x) grepl("GO:",x,fixed = TRUE))),]
+t
+```
+
 # export tables
 
 ```
