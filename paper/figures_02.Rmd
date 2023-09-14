@@ -26,7 +26,7 @@ knitr::opts_chunk$set(xtable.comment = FALSE,
                       message = F,
                       warning=F, 
                       error = F,
-                      cache = F, 
+                      cache = FALSE,
                       tidy = F, 
                       size="footnotesize",
                       fig.pos='H',
@@ -66,6 +66,7 @@ library(shades)
 library(viridis)
 library(gridExtra)
 
+orderedcelllines <- c("SK-MEL-5","IGR-37","RPMI-7951") # put here what cells to highlight (A-375,SK-MEL-1)
 validation_aucs <- "metadata/goeksu/exp1/AUCs.xlsx"
 validation_ic50s <- "metadata/goeksu/exp1/IC50s.xlsx"
 
@@ -101,6 +102,7 @@ emtp <- emtp[emtp$TCGA %in% c("BRCA","SKCM","LUAD","SCLC","GBM","COREAD"),]
 emtp$TCGA <- factor(emtp$TCGA)
 colnames(emtp) <- c("COSMIC ID","mak","gsva","tan","tagliazucchi","TCGA Desc")
 
+
 # responses
 resp_ic50 = suppressMessages(read_csv(paste0(path,"metadata/matrix_resp","",".csv"))) # %>% dplyr::select(-c("COSMIC ID","TCGA Desc")))
 resp_auc = suppressMessages(read_csv(paste0(path,"metadata/matrix_resp","_auc",".csv"))) # %>% dplyr::select(-c("COSMIC ID","TCGA Desc")))
@@ -115,13 +117,19 @@ experiment <- read_csv(paste0(path,"metadata/paper/benchmark_paper_exp3+6_03_poo
 gex <- read_csv(paste0(path,"metadata/matrix_exp.csv"))
 mut_skcm <-read_csv(paste0(path,"metadata/matrix_mut_SKCM.csv"))
 
+# add tgfb scores
+emtp_tgf <- emtp
+emtp_tgf <- left_join(emtp_tgf, gex[,c("COSMIC ID","TGFB1")], by = "COSMIC ID")
+
 # function for plotting scatter plots
 plot_drug <- function(
   df_response = list(ic50 = resp_ic50, auc = resp_auc),
   name_drug,
   emt_score = "mak",
   cancer_type,
-  name = NA
+  name = NA,
+  anno_cells = FALSE,
+  orderedcelllines = c("SK-MEL-5","IGR-37","RPMI-7951") # put here what cells to highlight (A-375,SK-MEL1)
   # EMTscores = EMTscores
   # gex = gex
   )
@@ -140,7 +148,7 @@ plot_drug <- function(
   
   data <- exp
   cortest <- cor.test(data$EMT_score, unlist(data[,dr]))
-  plist[["auc"]] <- ggplot(data, aes(x=EMT_score, y = !!sym(dr))) + 
+  p <- ggplot(data, aes(x=EMT_score, y = !!sym(dr))) + 
     geom_smooth(method = "lm", color = "gray50", fill = "gray65") + geom_point() +
     xlab("EMT score") + ylab(paste0("AUC ",name)) + ggtitle(paste0(name," response"))+ #, subtitle = "functional NQO1 expression") +
     theme_minimal() + #+ theme(plot.title = element_text(size = 20),
@@ -152,6 +160,16 @@ plot_drug <- function(
     annotate("text", label = paste0("r = ",as.numeric(round(cortest$estimate, 2)),"\n","p = ",round(cortest$p.value, 3)) , 
              x = min(na.omit(data$EMT_score)), y = 0.05, vjust = 0, hjust = 0)
   
+  # add labels
+  if(anno_cells){
+        anno <- read_csv(paste0(path,"data/Model.csv")) %>%
+      dplyr::rename(`COSMIC ID` = COSMICID)
+    data <- left_join(data, anno, by = "COSMIC ID", na_matches = "never")
+    data$CellLineName[!(data$CellLineName %in% orderedcelllines)] <- ""
+    p <- p +
+      geom_text_repel(data = data, aes(label = CellLineName), max.overlaps = Inf, min.segment.length = 0, box.padding = 0.5,nudge_x = .15,nudge_y = -.1)
+  }
+  plist[["auc"]] <- p
   
   resp <- df_response[["ic50"]]
   dr <- name_drug
@@ -162,7 +180,7 @@ plot_drug <- function(
   
   data <- exp
   cortest <- cor.test(data$EMT_score, unlist(data[,dr])) #Tanespimycin.1026.GDSC1
-  plist[["ic50"]] <- ggplot(data, aes(x=EMT_score, y = exp(!!sym(dr)))) + 
+  p <- ggplot(data, aes(x=EMT_score, y = exp(!!sym(dr)))) + 
     geom_smooth(method = "lm", color = "gray50", fill = "gray65") + geom_point() +
     xlab("EMT score") + ylab(paste0("IC50 ",name," [µM]")) + ggtitle(paste0(name," response"))+ #, subtitle = "functional NQO1 expression") +
     theme_minimal() + #+ theme(plot.title = element_text(size = 20),
@@ -179,6 +197,18 @@ plot_drug <- function(
       limits = c(min(na.omit(exp(unlist(data[,dr]))))*0.1,max(na.omit(exp(unlist(data[,dr])))*1.1))
     )+
     annotation_logticks(sides = "l")
+  
+  # add labels
+  if(anno_cells){
+        anno <- read_csv(paste0(path,"data/Model.csv")) %>%
+      dplyr::rename(`COSMIC ID` = COSMICID)
+    data <- left_join(data, anno, by = "COSMIC ID", na_matches = "never")
+    data$CellLineName[!(data$CellLineName %in% orderedcelllines)] <- ""
+    p <- p +
+      geom_text_repel(data = data, aes(label = CellLineName), max.overlaps = Inf, min.segment.length = 0, box.padding = 0.5,nudge_x = .15,nudge_y = -.1)
+  }
+  
+  plist[["ic50"]] <- p
   
   return(plist)
 }
@@ -349,7 +379,8 @@ df_4 <- df_4[(df_4$`c(strat)` %in% label_data$`c(strat)`),]
 
 p <- ggplot(data = df_4)+
     geom_errorbar(aes(x = reorder(!!sym(x), !!sym(y)), ymin = lower, ymax=upper), color="black", alpha = 1) +
-    geom_line(aes(x = reorder(!!sym(x), !!sym(y)), y = !!sym(y), group = 1), color = "grey")+ 
+    #geom_line(aes(x = reorder(!!sym(x), !!sym(y)), y = !!sym(y), group = 1), color = "grey")+ 
+    geom_hline(yintercept=0, linetype='dotted', color = "grey66", size = 0.9)+
     geom_point(aes(x = reorder(!!sym(x), !!sym(y)), y = !!sym(y)), color = "black", alpha = 1) +
     #geom_ribbon(aes(x = 1:length(!!sym(x)), ymin = lower, ymax=upper), fill = "lightgrey", alpha = 0.4)+
     #geom_point(data = df_3, aes(x = !!sym(x), y = -log10(!!sym(y))), alpha = 0.2, color = pastel_colors[1])+
@@ -470,7 +501,8 @@ df_4 <- df_4[(df_4$`c(strat)` %in% label_data$`c(strat)`),]
 
 p <- ggplot(data = df_4)+
     geom_errorbar(aes(x = reorder(!!sym(x), !!sym(y)), ymin = lower, ymax=upper), color="black", alpha = 1) +
-    geom_line(aes(x = reorder(!!sym(x), !!sym(y)), y = !!sym(y), group = 1), color = "grey")+ 
+    #geom_line(aes(x = reorder(!!sym(x), !!sym(y)), y = !!sym(y), group = 1), color = "grey")+ 
+    geom_hline(yintercept=0, linetype='dotted', color = "grey66", size = 0.9)+
     geom_point(aes(x = reorder(!!sym(x), !!sym(y)), y = !!sym(y)), color = "black", alpha = 1) +
     #geom_ribbon(aes(x = 1:length(!!sym(x)), ymin = lower, ymax=upper), fill = "lightgrey", alpha = 0.4)+
     #geom_point(data = df_3, aes(x = !!sym(x), y = -log10(!!sym(y))), alpha = 0.2, color = pastel_colors[1])+
@@ -481,6 +513,29 @@ p <- ggplot(data = df_4)+
     xlab("")+
     ylab("Standardised estimated\ncausal effect")
 p
+```
+
+```{r emt_correlations_tgfb, fig.width=10, fig.height=2.5}
+emtpp_tgf <- emtp_tgf
+colnames(emtpp_tgf) = c("COSMIC ID","MAK","GSVA","TAN","TW","TCGA Desc","TGFB1")
+emtpp_tgf <- emtpp_tgf[emtpp_tgf$`TCGA Desc` == "SKCM",]
+
+# add labels
+anno <- read_csv(paste0(path,"data/Model.csv")) %>%
+  dplyr::rename(`COSMIC ID` = COSMICID)
+emtpp_tgf <- left_join(emtpp_tgf, anno, by = "COSMIC ID")
+orderedcelllines <- c("SK-MEL-5","IGR-37","RPMI-7951") # put here what cells to highlight (A-375,SK-MEL1)
+emtpp_tgf$CellLineName[!(emtpp_tgf$CellLineName %in% orderedcelllines)] <- ""
+
+ggp_tgf <- ggpairs(emtpp_tgf, columns = 2:ncol(emtp_tgf), # , aes(colour=`TCGA Desc`
+        diag = list(continuous = my_dens)
+        ) + scale_fill_manual(values = rev(pastel_colors))+scale_color_manual(values = rev(pastel_colors))+
+  theme_minimal()
+grid.arrange(ggp_tgf[6,1]+geom_text_repel(data = emtpp_tgf, aes(label = CellLineName), max.overlaps = Inf, min.segment.length = 0, box.padding = 0.5,nudge_x = .15,nudge_y = -.1),
+             ggp_tgf[6,2]+geom_text_repel(data = emtpp_tgf, aes(label = CellLineName), max.overlaps = Inf, min.segment.length = 0, box.padding = 0.5,nudge_x = .15,nudge_y = -.1),
+             ggp_tgf[6,3]+geom_text_repel(data = emtpp_tgf, aes(label = CellLineName), max.overlaps = Inf, min.segment.length = 0, box.padding = 0.5,nudge_x = .15,nudge_y = -.1),
+             ggp_tgf[6,4]+geom_text_repel(data = emtpp_tgf, aes(label = CellLineName), max.overlaps = Inf, min.segment.length = 0, box.padding = 0.5,nudge_x = .15,nudge_y = -.1),
+             ncol = 4)
 ```
 
 ```{r emt_correlations, fig.width=9, fig.height=11}
@@ -675,7 +730,8 @@ df_4$id[1] <- "AZD7762 (BRCA, auc, GSVA, 2)"
 df_4$id[8] <- "AZD7762 (BRCA, auc, GSVA, 1)"
 p <- ggplot(data = df_4)+
     geom_errorbar(aes(x = reorder(!!sym(x), !!sym(y)), ymin = lower, ymax=upper), color="black", alpha = 1) +
-    geom_line(aes(x = reorder(!!sym(x), !!sym(y)), y = !!sym(y), group = 1), color = "grey")+ 
+    #geom_line(aes(x = reorder(!!sym(x), !!sym(y)), y = !!sym(y), group = 1), color = "grey")+ 
+    geom_hline(yintercept=0, linetype='dotted', color = "grey66", size = 0.9)+
     geom_point(aes(x = reorder(!!sym(x), !!sym(y)), y = !!sym(y)), color = "black", alpha = 1) +
     #geom_ribbon(aes(x = 1:length(!!sym(x)), ymin = lower, ymax=upper), fill = "lightgrey", alpha = 0.4)+
     #geom_point(data = df_3, aes(x = !!sym(x), y = -log10(!!sym(y))), alpha = 0.2, color = pastel_colors[1])+
@@ -698,7 +754,8 @@ df_4 <- df_4[(df_4$`c(strat)` %in% label_data$`c(strat)`),]
 #df_4$id[8] <- "AZD7762 (BRCA, auc, gsva, 1)"
 p <- ggplot(data = df_4)+
     geom_errorbar(aes(x = reorder(!!sym(x), !!sym(y)), ymin = lower, ymax=upper), color="black", alpha = 1) +
-    geom_line(aes(x = reorder(!!sym(x), !!sym(y)), y = !!sym(y), group = 1), color = "grey")+ 
+    geom_hline(yintercept=0, linetype='dotted', color = "grey66", size = 0.9)+
+    #geom_line(aes(x = reorder(!!sym(x), !!sym(y)), y = !!sym(y), group = 1), color = "grey")+ 
     geom_point(aes(x = reorder(!!sym(x), !!sym(y)), y = !!sym(y)), color = "black", alpha = 1) +
     #geom_ribbon(aes(x = 1:length(!!sym(x)), ymin = lower, ymax=upper), fill = "lightgrey", alpha = 0.4)+
     #geom_point(data = df_3, aes(x = !!sym(x), y = -log10(!!sym(y))), alpha = 0.2, color = pastel_colors[1])+
@@ -884,7 +941,7 @@ exp <- left_join(exp, resp) %>%
 
 data <- exp[exp$NQO1_binary == "high",] # & exp$genotype_CT != "-"
 cortest <- cor.test(data$EMT_score, unlist(data[,dr]))
-ggplot(data, aes(x=EMT_score, y = !!sym(dr))) + 
+p <- ggplot(data, aes(x=EMT_score, y = !!sym(dr))) + 
   geom_smooth(method = "lm", color = "gray50", fill = "gray65") + geom_point() +
   xlab("EMT score") + ylab("AUC 17-AAG") + ggtitle("17-AAG response")+ #, subtitle = "functional NQO1 expression") +
   theme_minimal() + #+ theme(plot.title = element_text(size = 20),
@@ -895,6 +952,17 @@ ggplot(data, aes(x=EMT_score, y = !!sym(dr))) +
                   #        legend.position = "none") 
   annotate("text", label = paste0("r = ",as.numeric(round(cortest$estimate, 2)),"\n","p = ",round(cortest$p.value, 3)) , 
            x = min(na.omit(data$EMT_score)), y = 0.05, vjust = 0, hjust = 0)
+p
+```
+
+```{r hsp90_17aag_auc_anno, fig.width=2, fig.height=2}
+anno <- read_csv(paste0(path,"data/Model.csv")) %>%
+  dplyr::rename(`COSMIC ID` = COSMICID)
+data <- left_join(data, anno, by = "COSMIC ID", na_matches = "never")
+data$CellLineName[!(data$CellLineName %in% orderedcelllines)] <- ""
+p_anno <- p +
+  geom_text_repel(data = data, aes(label = CellLineName), max.overlaps = Inf, min.segment.length = 0, box.padding = 0.5,nudge_x = .15,nudge_y = -.1)
+p_anno
 ```
 
 ```{r hsp90_17aag_ic50, fig.width=2, fig.height=2}
@@ -910,7 +978,7 @@ exp <- left_join(exp, resp) %>%
 
 data <- exp[exp$NQO1_binary == "high",] # & exp$genotype_CT != "-"
 cortest <- cor.test(data$EMT_score, unlist(data[,dr])) #Tanespimycin.1026.GDSC1
-ggplot(data, aes(x=EMT_score, y = exp(!!sym(dr)))) + 
+p <- ggplot(data, aes(x=EMT_score, y = exp(!!sym(dr)))) + 
   geom_smooth(method = "lm", color = "gray50", fill = "gray65") + geom_point() +
   xlab("EMT score") + ylab("IC50 17-AAG [µM]") + ggtitle("17-AAG response")+ #, subtitle = "functional NQO1 expression") +
   theme_minimal() + #+ theme(plot.title = element_text(size = 20),
@@ -927,9 +995,20 @@ ggplot(data, aes(x=EMT_score, y = exp(!!sym(dr)))) +
         limits = c(min(na.omit(exp(unlist(data[,dr]))))*0.1,max(na.omit(exp(unlist(data[,dr])))*1.1))
     )+
   annotation_logticks(sides = "l")
+p
 ```
 
-```{r onalespib_auc, fig.width=2, fig.height=2}
+```{r hsp90_17aag_ic50_anno, fig.width=2, fig.height=2}
+anno <- read_csv(paste0(path,"data/Model.csv")) %>%
+  dplyr::rename(`COSMIC ID` = COSMICID)
+data <- left_join(data, anno, by = "COSMIC ID", na_matches = "never")
+data$CellLineName[!(data$CellLineName %in% orderedcelllines)] <- ""
+p_anno <- p +
+  geom_text_repel(data = data, aes(label = CellLineName), max.overlaps = Inf, min.segment.length = 0, box.padding = 0.5,nudge_x = .15,nudge_y = -.1)
+p_anno
+```
+
+```{r onalespib_auc, fig.width=2.7, fig.height=2}
 EMTscores_ccle <- read_csv(paste0(path,"metadata/EMTscores_ccle.csv"))
 drug_response_ccle <- read.delim(paste0(path,"data/depmap/v20.data.curves_post_qc.txt"))
 meta_experiment <- read.delim(paste0(path,"data/depmap/v20.meta.per_experiment.txt"))
@@ -969,17 +1048,22 @@ dr_onalespib$apparent_ec50_umol <- unlist(lapply(1:nrow(dr_onalespib), # cap ic5
                                                  )
                                           )
 
+# check for independent cell lines not included in GDSC
+dr_onalespib$`in GDSC` <- as.character((dr_onalespib$COSMICID %in% EMTscores$`COSMIC ID`))
+dr_onalespib <- dr_onalespib %>%
+  mutate(`in GDSC` = dplyr::recode(`in GDSC`,"TRUE" = "yes", "FALSE" = "no"))
 
 for(drugname in na.omit(unique(dr_onalespib$cpd_name))){
   ccle_skcm_dr <- dr_onalespib[dr_onalespib$cpd_name %in% drugname,]
-  ccle_skcm_dr <- (na.omit(ccle_skcm_dr[,c("EMT_score","apparent_ec50_umol","AUC")])) %>% distinct
+  ccle_skcm_dr <- (na.omit(ccle_skcm_dr[,c("EMT_score","apparent_ec50_umol","AUC","in GDSC")])) %>% distinct
   cortest <- cor.test(ccle_skcm_dr$EMT_score, (ccle_skcm_dr$AUC))
   cortest
-  p <- ggplot(ccle_skcm_dr, aes(x=EMT_score, y=AUC)) + 
+  p <- ggplot(ccle_skcm_dr, aes(x=EMT_score, y=AUC, color = `in GDSC`)) + 
     stat_smooth(method = "lm", color = "gray50", fill = "gray65") + 
     geom_point() + 
     ggtitle(paste0(drugname," in CCLE"))+ theme_minimal()+
     xlab("EMT score") + ylab("AUC") +
+    scale_color_manual(values = c("black","grey70"))+
     #theme(plot.title = element_text(size = 20), 
     #                                                                axis.title = element_text(size = 20),
     #                                                                axis.text = element_text(size = 15),
@@ -990,18 +1074,19 @@ for(drugname in na.omit(unique(dr_onalespib$cpd_name))){
 }
 ```
 
-```{r onalespib_ic50, fig.width=2, fig.height=2}
+```{r onalespib_ic50, fig.width=2.7, fig.height=2}
 # requires inputs from chunk above
 
 for(drugname in na.omit(unique(dr_onalespib$cpd_name))){
   ccle_skcm_dr <- dr_onalespib[dr_onalespib$cpd_name %in% drugname,]
-  ccle_skcm_dr <- (na.omit(ccle_skcm_dr[,c("EMT_score","apparent_ec50_umol","AUC")])) %>% distinct
+  ccle_skcm_dr <- (na.omit(ccle_skcm_dr[,c("EMT_score","apparent_ec50_umol","AUC","in GDSC")])) %>% distinct
   cortest <- cor.test(ccle_skcm_dr$EMT_score, (ccle_skcm_dr$apparent_ec50_umol))
   cortest
-  p <- ggplot(ccle_skcm_dr, aes(x=EMT_score, y=apparent_ec50_umol)) + 
+  p <- ggplot(ccle_skcm_dr, aes(x=EMT_score, y=apparent_ec50_umol, color = `in GDSC`)) + 
     stat_smooth(method = "lm", color = "gray50", fill = "gray65") + 
     geom_point() + 
     ggtitle(paste0(drugname," in CCLE"))+ theme_minimal()+
+    scale_color_manual(values = c("black","grey70"))+
     xlab("EMT score") + ylab("IC50 [µM]") +
     #theme(plot.title = element_text(size = 20), 
     #                                                                axis.title = element_text(size = 20),
@@ -1024,7 +1109,7 @@ anno <- read_csv(paste0(path,"data/Model.csv")) %>%
   rename(`COSMIC ID` = COSMICID)
 data <- full_join(resp_ic50, EMTscores) %>% dplyr::filter(`TCGA Desc` == "SKCM")
 data <- left_join(data, anno, by = "COSMIC ID")
-orderedcelllines <- c("SK-MEL-5","IGR-37","RPMI-7951") # put here what cells to highlight (A-375,SK-MEL1)
+#
 data$CellLineName[!(data$CellLineName %in% orderedcelllines)] <- ""
 ggplot(data, aes(x=EMT_score, y = exp(`1559-GDSC2`), color = EMT_score)) + 
      stat_smooth(method = "lm", color = "gray50", fill = "gray65")+
@@ -1242,12 +1327,12 @@ plot_drug(name_drug = "1031-GDSC1",
 plot_drug(name_drug = "1031-GDSC2",
           cancer_type = "SKCM",
           name = "Elesclomol (2)")
-plot_drug(name_drug = "1031-GDSC2",
-          cancer_type = "SKCM",
-          name = "Luminespib (2)")
+#plot_drug(name_drug = "1031-GDSC2",
+#          cancer_type = "SKCM",
+#          name = "Luminespib (2)")
 plot_drug(name_drug = "194-GDSC1",
           cancer_type = "SKCM",
-          name = "Luminespib (3)")
+          name = "Luminespib (2)")
 plot_drug(name_drug = "154-GDSC1",
           cancer_type = "SKCM",
           name = "CHIR-99021 (2)")
