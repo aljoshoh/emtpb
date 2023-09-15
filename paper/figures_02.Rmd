@@ -65,6 +65,7 @@ library(circlize)
 library(shades)
 library(viridis)
 library(gridExtra)
+library(writexl)
 
 orderedcelllines <- c("SK-MEL-5","IGR-37","RPMI-7951") # put here what cells to highlight (A-375,SK-MEL-1)
 validation_aucs <- "metadata/goeksu/exp1/AUCs.xlsx"
@@ -98,6 +99,8 @@ EMTscores_tagliazucchi <- suppressMessages(read_csv(paste0(path,"metadata/EMTsco
 emt <- full_join(full_join(full_join(EMTscores_mak, EMTscores_gsva, by = "COSMIC ID"), EMTscores_tan, by = "COSMIC ID"), EMTscores_tagliazucchi, by = "COSMIC ID")
 emtp <- select_if(emt, is.numeric)
 emtp$TCGA <- factor(emt$`TCGA Desc.x`)
+emtp_save <- emtp
+colnames(emtp_save) <- c("COSMIC ID","mak","gsva","tan","tagliazucchi","TCGA Desc")
 emtp <- emtp[emtp$TCGA %in% c("BRCA","SKCM","LUAD","SCLC","GBM","COREAD"),]
 emtp$TCGA <- factor(emtp$TCGA)
 colnames(emtp) <- c("COSMIC ID","mak","gsva","tan","tagliazucchi","TCGA Desc")
@@ -1202,6 +1205,7 @@ V$name <- c("RPMI-7951","RPMI-7951","A375","A375","SK-MEL-5","SK-MEL-5","IGR-37"
 V <- V[!V$name %in% "A375",]
 V <- V %>% 
   mutate(label = factor(paste(emt,tgf)))
+V_save <- V
   
 # summary
 s <- ggplot(V, aes(x = name, y = AUC, fill = label, color = label, shape = tgf)) + 
@@ -1357,6 +1361,8 @@ t$emt <- unlist(lapply(t$id, function(x) strsplit(x," ")[[1]][1]))
 t$updn <- unlist(lapply(t$id, function(x) strsplit(x," ")[[1]][2]))
 t <- t[unlist(lapply(t$Term, function(x) grepl("GO:",x,fixed = TRUE))),]
 t
+t_save <- t
+t_save$which_signature <- "luminespib"
 ```
 
 ```{r common_signatures_chir_99021_luminespib}
@@ -1367,10 +1373,53 @@ t$emt <- unlist(lapply(t$id, function(x) strsplit(x," ")[[1]][1]))
 t$updn <- unlist(lapply(t$id, function(x) strsplit(x," ")[[1]][2]))
 t <- t[unlist(lapply(t$Term, function(x) grepl("GO:",x,fixed = TRUE))),]
 t
+t_save2 <- t
+t_save2$which_signature <- "luminespib_and_chir990221"
+t_save2$id <- "mes down"
+t_save2$emt <- "mes"
+t_save2$updn <- "down"
+t_save <- rbind(t_save, t_save2)
 ```
 
 # export tables
+```{r pathe}
+pathe <- paste0(path,"paper/tables/")
+```
 
+
+```{r data_emtscores_gdsc}
+emtp_export <- emtp_save[!is.na(emtp_save$`COSMIC ID`),]
+write_xlsx(emtp_export, path = paste0(pathe,"data_s1.xlsx"))
 ```
-# change name from secrier to tagliazucchi
+
+```{r data_ablation_ci}
+df_export <- df %>%
+  dplyr::filter(TCGA != "PANCAN") %>%
+  dplyr::filter(method != "grf")
+write_xlsx(df_export, path = paste0(pathe,"data_s2.xlsx"))
 ```
+
+```{r data_enrichments_tf}
+enrichment_tf_export <- enr_red
+write_xlsx(enrichment_tf_export, path = paste0(pathe,"data_s3.xlsx"))
+```
+
+```{r data_enrichments_lincs}
+t_export <- t_save
+write_xlsx(t_export, path = paste0(pathe,"data_s4.xlsx"))
+```
+
+```{r data_emtscores_ccle}
+emtp_ccle_export <- full_join(meta_experiment, EMTscores_ccle, by = c("master_ccl_id" = "COSMIC ID"))
+emtp_ccle_export <- left_join(emtp_ccle_export, sample_info, by = "master_ccl_id") %>%
+  dplyr::rename(`COSMIC ID` = COSMICID)
+write_xlsx(emtp_ccle_export, path = paste0(pathe,"data_s5.xlsx"))
+```
+
+```{r data_validation}
+V_export <- full_join(V,V_save)
+write_xlsx(V_export, path = paste0(pathe,"data_s6.xlsx"))
+```
+
+
+
