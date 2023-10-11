@@ -1,7 +1,7 @@
 ---
 title: "emtpb manuscript figures"
 author: "Alexander Ohnmacht"
-date: "17/02/2023"
+date: "17/09/2023"
 output:
   pdf_document: 
     toc: true
@@ -67,9 +67,9 @@ library(viridis)
 library(gridExtra)
 library(writexl)
 
-orderedcelllines <- c("SK-MEL-5","IGR-37","RPMI-7951") # put here what cells to highlight (A-375,SK-MEL-1)
-validation_aucs <- "metadata/goeksu/exp1/AUCs.xlsx"
-validation_ic50s <- "metadata/goeksu/exp1/IC50s.xlsx"
+orderedcelllines <- c("SK-MEL-5","IGR-37","RPMI-7951","A375") # put here what cells to highlight (A-375,SK-MEL-1)
+validation_aucs <- "metadata/goeksu/exp2/AUCs.xlsx"
+validation_ic50s <- "metadata/goeksu/exp2/IC50s.xlsx"
 
 EMTscores <- suppressMessages(read_csv(paste0(path,"metadata/EMTscores","",".csv"))) # BENCHMARKING ORDER FOR GDSC CANCER TYPES
 cancertypes <- unique(c('PANCAN', unlist(EMTscores['TCGA Desc'])))
@@ -132,7 +132,7 @@ plot_drug <- function(
   cancer_type,
   name = NA,
   anno_cells = FALSE,
-  orderedcelllines = c("SK-MEL-5","IGR-37","RPMI-7951") # put here what cells to highlight (A-375,SK-MEL1)
+  orderedcelllines = c("SK-MEL-5","IGR-37","RPMI-7951","A375") # put here what cells to highlight (A-375,SK-MEL1)
   # EMTscores = EMTscores
   # gex = gex
   )
@@ -167,6 +167,7 @@ plot_drug <- function(
   if(anno_cells){
         anno <- read_csv(paste0(path,"data/Model.csv")) %>%
       dplyr::rename(`COSMIC ID` = COSMICID)
+    anno$CellLineName[anno$CellLineName == "A-375"] <- "A375"
     data <- left_join(data, anno, by = "COSMIC ID", na_matches = "never")
     data$CellLineName[!(data$CellLineName %in% orderedcelllines)] <- ""
     p <- p +
@@ -205,6 +206,7 @@ plot_drug <- function(
   if(anno_cells){
         anno <- read_csv(paste0(path,"data/Model.csv")) %>%
       dplyr::rename(`COSMIC ID` = COSMICID)
+    anno$CellLineName[anno$CellLineName == "A-375"] <- "A375"
     data <- left_join(data, anno, by = "COSMIC ID", na_matches = "never")
     data$CellLineName[!(data$CellLineName %in% orderedcelllines)] <- ""
     p <- p +
@@ -319,7 +321,7 @@ ggplot(q) +
   annotation_logticks()
 ```
 
-```{r volcano_skcm_auc_mak, fig.width=6, fig.height=3}
+```{r volcano_skcm_auc_mak, fig.width=6, fig.height=2}
 # Figure 1 volcano for cancer types and drugs (SKCM)
 min_hits <- 1
 pastel_colors <- brewer.pal(6, "Pastel2")
@@ -355,8 +357,8 @@ df_3 <- df_3 %>% group_by(c(strat)) %>% summarize(effectsize_grf = na.omit(effec
 #df_3$effectsize_grf[df_3$score == "mak"] <- -df_3$effectsize_grf[df_3$score == "mak"] ### FIX THIS !
 fdr_threshold <- 0.2
 x <- "delta"
-y <- "pvalue_eln"
-h0 <- max((df_3[,c(y,"fdr_eln")] %>% arrange(fdr_eln) %>% filter(fdr_eln < fdr_threshold))[,y])
+y <- "fdr_eln"#"pvalue_eln"
+h0 <- max((df_3[,unique(c(y,"fdr_eln"))] %>% arrange(fdr_eln) %>% filter(fdr_eln < fdr_threshold))[,y])
 label_data <- df_3[(df_3$fdr_eln < fdr_threshold)&(df_3$filt %in% names(which(table(df_3[df_3$fdr_eln < 0.2,"filt"] ) >=min_hits))),]
 #h0 <- sort(unlist(na.omit(df_3[,"pvalue_eln"])))[max(which(sort(unlist(na.omit(df_3[,"fdr_eln"])))<=fdr_threshold))]
 p <- ggplot()+
@@ -374,12 +376,37 @@ p <- ggplot()+
 p
 ```
 
-```{r causal_effect_skcm_auc, fig.width=3, fig.height=3.5}
-x <- "id"
+```{r causal_effect_skcm_auc_full, fig.width=6, fig.height=4}
+x <- "c(strat)"
 y <- "effectsize_grf"
 df_4 <- (df_3[df_3$resp_type == "auc",])
-df_4 <- df_4[(df_4$`c(strat)` %in% label_data$`c(strat)`),]
+df_4$sig <- (df_4$`c(strat)` %in% label_data$`c(strat)`)
+df_4$label <- df_4$id
+df_4$label[df_4$sig == FALSE] <- NA
 
+p <- ggplot(data = df_4)+
+    geom_errorbar(aes(x = reorder(!!sym(x), !!sym(y)), ymin = lower, ymax=upper, color = sig), alpha = 0.5) +
+    geom_hline(yintercept=0, linetype='dotted', color = "grey66", size = 0.9)+
+    geom_point(aes(x = reorder(!!sym(x), !!sym(y)), y = !!sym(y), color = sig), alpha = 1) +
+    geom_point(data = df_4[df_4$sig,], aes(x = reorder(!!sym(x), !!sym(y)), y = !!sym(y)), color = "black", alpha = 1) +
+    #geom_errorbar(data = df_4[df_4$sig,], aes(x = reorder(!!sym(x), !!sym(y)), ymin = lower, ymax=upper), color = "black", alpha = 1) +
+    theme_minimal()+
+    theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank(),
+        panel.grid.major.x = element_blank()
+        )+
+    xlab("")+
+    geom_text_repel(data = df_4, aes(x = reorder(!!sym(x), !!sym(y)), y = !!sym(y), label = label),  nudge_y = 0.15, direction = "x", angle = 90)+
+    ylab("Estimated causal effect")+
+    scale_color_manual(values = c("grey80","black"))
+p
+```
+
+```{r causal_effect_skcm_auc, fig.width=3, fig.height=2.5}
+x <- "id"
+# only significants
+df_4 <- df_4[df_4$sig,]
 p <- ggplot(data = df_4)+
     geom_errorbar(aes(x = reorder(!!sym(x), !!sym(y)), ymin = lower, ymax=upper), color="black", alpha = 1) +
     #geom_line(aes(x = reorder(!!sym(x), !!sym(y)), y = !!sym(y), group = 1), color = "grey")+ 
@@ -392,7 +419,7 @@ p <- ggplot(data = df_4)+
     theme_minimal()+
     theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1), plot.margin = margin(t = 0, r = 0, b = 0, l = 50, unit = "pt"))+
     xlab("")+
-    ylab("Standardised estimated\ncausal effect")
+    ylab("Estimated causal effect")
 p
 ```
 
@@ -441,7 +468,7 @@ ggplot()+
   scale_x_continuous(breaks=c(0,1,2))
 ```
 
-```{r volcano_skcm_ic50_mak, fig.width=6, fig.height=3}
+```{r volcano_skcm_ic50_mak, fig.width=6, fig.height=2}
 # Figure 1 volcano for cancer types and drugs (SKCM)
 min_hits <- 1
 pastel_colors <- brewer.pal(6, "Pastel2")
@@ -477,8 +504,8 @@ df_3 <- df_3 %>% group_by(c(strat)) %>% summarize(effectsize_grf = na.omit(effec
 #df_3$effectsize_grf[df_3$score == "mak"] <- -df_3$effectsize_grf[df_3$score == "mak"] ### FIX THIS !
 fdr_threshold <- 0.2
 x <- "delta"
-y <- "pvalue_eln"
-h0 <- max((df_3[,c(y,"fdr_eln")] %>% arrange(fdr_eln) %>% filter(fdr_eln < fdr_threshold))[,y])
+y <- "fdr_eln"#"pvalue_eln"
+h0 <- max((df_3[,unique(c(y,"fdr_eln"))] %>% arrange(fdr_eln) %>% filter(fdr_eln < fdr_threshold))[,y])
 label_data <- df_3[(df_3$fdr_eln < fdr_threshold)&(df_3$filt %in% names(which(table(df_3[df_3$fdr_eln < 0.2,"filt"] ) >=min_hits))),]
 #h0 <- sort(unlist(na.omit(df_3[,"pvalue_eln"])))[max(which(sort(unlist(na.omit(df_3[,"fdr_eln"])))<=fdr_threshold))]
 p <- ggplot()+
@@ -496,12 +523,37 @@ p <- ggplot()+
 p
 ```
 
-```{r causal_effect_skcm_ic50, fig.width=2, fig.height=3.5}
-x <- "id"
+```{r causal_effect_skcm_ic50_full, fig.width=6, fig.height=4}
+x <- "c(strat)"
 y <- "effectsize_grf"
 df_4 <- (df_3[df_3$resp_type == "ic50",])
-df_4 <- df_4[(df_4$`c(strat)` %in% label_data$`c(strat)`),]
+df_4$sig <- (df_4$`c(strat)` %in% label_data$`c(strat)`)
+df_4$label <- df_4$id
+df_4$label[df_4$sig == FALSE] <- NA
 
+p <- ggplot(data = df_4)+
+    geom_errorbar(aes(x = reorder(!!sym(x), !!sym(y)), ymin = lower, ymax=upper, color = sig), alpha = 0.5) +
+    geom_hline(yintercept=0, linetype='dotted', color = "grey66", size = 0.9)+
+    geom_point(aes(x = reorder(!!sym(x), !!sym(y)), y = !!sym(y), color = sig), alpha = 1) +
+    geom_point(data = df_4[df_4$sig,], aes(x = reorder(!!sym(x), !!sym(y)), y = !!sym(y)), color = "black", alpha = 1) +
+    geom_errorbar(data = df_4[df_4$sig,], aes(x = reorder(!!sym(x), !!sym(y)), ymin = lower, ymax=upper), color = "black", alpha = 1) +
+    theme_minimal()+
+    theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank(),
+        panel.grid.major.x = element_blank()
+        )+
+    xlab("")+
+    geom_text_repel(data = df_4, aes(x = reorder(!!sym(x), !!sym(y)), y = !!sym(y), label = label),  nudge_y = 1.5, direction = "x", angle = 90)+
+    ylab("Estimated causal effect")+
+    scale_color_manual(values = c("grey80","black"))
+p
+```
+
+```{r causal_effect_skcm_ic50, fig.width=2, fig.height=2.5}
+x <- "id"
+# only significants
+df_4 <- df_4[df_4$sig,]
 p <- ggplot(data = df_4)+
     geom_errorbar(aes(x = reorder(!!sym(x), !!sym(y)), ymin = lower, ymax=upper), color="black", alpha = 1) +
     #geom_line(aes(x = reorder(!!sym(x), !!sym(y)), y = !!sym(y), group = 1), color = "grey")+ 
@@ -514,11 +566,17 @@ p <- ggplot(data = df_4)+
     theme_minimal()+
     theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1), plot.margin = margin(t = 0, r = 0, b = 0, l = 50, unit = "pt"))+
     xlab("")+
-    ylab("Standardised estimated\ncausal effect")
+    ylab("Estimated causal effect")
 p
 ```
 
 ```{r emt_correlations_tgfb, fig.width=10, fig.height=2.5}
+# Create a grid of scatter plots
+my_dens <- function(data, mapping, ...) {
+  ggplot(data = data, mapping=mapping) +
+    geom_density(..., alpha = 1) 
+}
+
 emtpp_tgf <- emtp_tgf
 colnames(emtpp_tgf) = c("COSMIC ID","MAK","GSVA","TAN","TW","TCGA Desc","TGFB1")
 emtpp_tgf <- emtpp_tgf[emtpp_tgf$`TCGA Desc` == "SKCM",]
@@ -526,8 +584,9 @@ emtpp_tgf <- emtpp_tgf[emtpp_tgf$`TCGA Desc` == "SKCM",]
 # add labels
 anno <- read_csv(paste0(path,"data/Model.csv")) %>%
   dplyr::rename(`COSMIC ID` = COSMICID)
+anno$CellLineName[anno$CellLineName == "A-375"] <- "A375"
 emtpp_tgf <- left_join(emtpp_tgf, anno, by = "COSMIC ID")
-orderedcelllines <- c("SK-MEL-5","IGR-37","RPMI-7951") # put here what cells to highlight (A-375,SK-MEL1)
+orderedcelllines <- c("SK-MEL-5","IGR-37","RPMI-7951","A375") # put here what cells to highlight (A-375,SK-MEL1)
 emtpp_tgf$CellLineName[!(emtpp_tgf$CellLineName %in% orderedcelllines)] <- ""
 
 ggp_tgf <- ggpairs(emtpp_tgf, columns = 2:ncol(emtp_tgf), # , aes(colour=`TCGA Desc`
@@ -542,11 +601,6 @@ grid.arrange(ggp_tgf[6,1]+geom_text_repel(data = emtpp_tgf, aes(label = CellLine
 ```
 
 ```{r emt_correlations, fig.width=9, fig.height=11}
-# Create a grid of scatter plots
-my_dens <- function(data, mapping, ...) {
-  ggplot(data = data, mapping=mapping) +
-    geom_density(..., alpha = 1) 
-}
 emtpp <- emtp
 colnames(emtpp) = c("COSMIC ID","MAK","GSVA","TAN","TW","TCGA Desc")
 ggp <- ggpairs(emtpp, columns = 2:ncol(emtp), aes(colour=`TCGA Desc`),
@@ -590,9 +644,9 @@ sig_drugs <- unlist(lapply(df_5$`c(strat)`, function(x) paste(strsplit(x,"-")[[1
 dat_skcm <- left_join(dat_skcm,resp_ic50[,colnames(resp_ic50) %in% c(sig_drugs,"COSMIC ID")], by = "COSMIC ID")
                       
 skcm_emt <- dat_skcm %>%
-  mutate(Luminespib = case_when(`1559-GDSC2` < median(na.omit(`1559-GDSC2`)) ~ "sensitive", T ~ "resistant")) %>%
-  mutate(Staurosporine = case_when(`1034-GDSC2` < median(na.omit(`1034-GDSC2`)) ~ "sensitive", T ~ "resistant")) %>%
-  mutate(`CHIR-99021` = case_when(`1241-GDSC1` < median(na.omit(`1241-GDSC1`)) ~ "sensitive", T ~ "resistant")) %>%
+  mutate(Luminespib = case_when(`1559-GDSC2` < median(na.omit(`1559-GDSC2`)) ~ "high\nresponse", T ~ "low\nresponse")) %>%
+  mutate(Staurosporine = case_when(`1034-GDSC2` < median(na.omit(`1034-GDSC2`)) ~ "high\nresponse", T ~ "low\nresponse")) %>%
+  mutate(`CHIR-99021` = case_when(`1241-GDSC1` < median(na.omit(`1241-GDSC1`)) ~ "high\nresponse", T ~ "low\nresponse")) %>%
   #mutate(mak = case_when(mak < median(na.omit(mak)) ~ "epithelial", T ~ "mesenchymal")) %>%
   dplyr::select(c("COSMIC ID","mak","gsva","tan","tagliazucchi","MITF","Luminespib","Staurosporine","CHIR-99021")) %>%
   pivot_longer(cols = c("Luminespib","Staurosporine","CHIR-99021")) %>%
@@ -608,7 +662,7 @@ stat.test <- skcm_emt %>%
   add_y_position()
 stat.test$y.position <- stat.test$y.position*1.1 # change position of labels
 ggboxplot(skcm_emt, x = "resp", y = "MITF", color = "resp", add = "jitter",facet.by = "drug")+theme_minimal()+
-  scale_color_manual(values = c("resistant" = "darkolivegreen4", "sensitive" = "darkolivegreen2"))+
+  scale_color_manual(values = c("low\nresponse" = "darkolivegreen4", "high\nresponse" = "darkolivegreen2"))+
   theme(legend.position = "none") + xlab("drug response") + ylab("MITF expression level")+
   stat_pvalue_manual(stat.test, bracket.nudge.y = 0.4, label = "p={p.adj}{p.adj.signif}", size = 2.5)+
   ylim(c(min(na.omit(skcm_emt$MITF)),13.5))+
@@ -665,6 +719,13 @@ draw(Heatmap(hm_df, top_annotation = an, name = "expression", col = col_fun,
              row_title = NULL), 
      merge_legend = TRUE, heatmap_legend_side = "bottom", 
      annotation_legend_side = "bottom")
+
+
+# BRAF test
+test <- t.test(skcm_hm_df$`1559-GDSC2`~ skcm_hm_df$BRAF_mut)
+diff(test$estimate);test
+test <- t.test(skcm_hm_df$EMT_score~ skcm_hm_df$BRAF_mut)
+diff(test$estimate);test
 ```
 
 ```{r volcano_all, fig.width=9.5, fig.height=5}
@@ -702,9 +763,9 @@ df_3 <- df_3 %>% group_by(c(strat)) %>% summarize(effectsize_grfo = na.omit(effe
   ungroup()
 #df_3$effectsize_grf[df_3$score == "mak"] <- -df_3$effectsize_grf[df_3$score == "mak"] ### FIX THIS !
 x <- "delta"
-y <- "pvalue_eln"
+y <- "fdr_eln"#"pvalue_eln"
 howmanyhits <- 3
-h0 <- max((df_3[,c(y,"fdr_eln")] %>% arrange(fdr_eln) %>% filter(fdr_eln < fdr_threshold))[,y])
+h0 <- max((df_3[,unique(c(y,"fdr_eln"))] %>% arrange(fdr_eln) %>% filter(fdr_eln < fdr_threshold))[,y])
 label_data <- df_3[(df_3$fdr_eln < fdr_threshold)&(df_3$filt %in% names(which(table(df_3[df_3$fdr_eln < fdr_threshold,"filt"] ) >=howmanyhits))),]
 #h0 <- sort(unlist(na.omit(df_3[,"pvalue_eln"])))[max(which(sort(unlist(na.omit(df_3[,"fdr_eln"])))<=fdr_threshold))]
 p <- ggplot()+
@@ -723,14 +784,40 @@ p <- ggplot()+
 p
 ```
 
-```{r causal_effect_auc, fig.width=4.0, fig.height=3.5}
-x <- "id"
+```{r causal_effect_auc_full, fig.width=9.5, fig.height=5}
+x <- "c(strat)"
 y <- "effectsize_grfo"
 df_4 <- (df_3[df_3$resp_type == "auc",])
-df_4 <- df_4[(df_4$`c(strat)` %in% label_data$`c(strat)`),]
+df_4$sig <- (df_4$`c(strat)` %in% label_data$`c(strat)`)
+df_4$label <- df_4$id
+df_4$label[df_4$sig == FALSE] <- NA
 
 df_4$id[1] <- "AZD7762 (BRCA, auc, GSVA, 2)"
 df_4$id[8] <- "AZD7762 (BRCA, auc, GSVA, 1)"
+
+p <- ggplot(data = df_4)+
+    geom_errorbar(aes(x = reorder(!!sym(x), !!sym(y)), ymin = lower, ymax=upper, color = sig), alpha = 0.5) +
+    geom_hline(yintercept=0, linetype='dotted', color = "grey66", size = 0.9)+
+    geom_point(aes(x = reorder(!!sym(x), !!sym(y)), y = !!sym(y), color = sig), alpha = 1) +
+    geom_point(data = df_4[df_4$sig,], aes(x = reorder(!!sym(x), !!sym(y)), y = !!sym(y)), color = "black", alpha = 1) +
+    geom_errorbar(data = df_4[df_4$sig,], aes(x = reorder(!!sym(x), !!sym(y)), ymin = lower, ymax=upper), color = "black", alpha = 1) +
+    theme_minimal()+
+    theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank(),
+        panel.grid.major.x = element_blank()
+        )+
+    xlab("")+
+    geom_text_repel(data = df_4, aes(x = reorder(!!sym(x), !!sym(y)), y = !!sym(y), label = label), nudge_y = 0.2, direction = "x", angle = 90)+
+    ylab("Estimated causal effect")+
+    scale_color_manual(values = c("grey80","black"))
+p
+```
+
+```{r causal_effect_auc, fig.width=4.0, fig.height=3.5}
+x <- "id"
+# only significants
+df_4 <- df_4[df_4$sig,]
 p <- ggplot(data = df_4)+
     geom_errorbar(aes(x = reorder(!!sym(x), !!sym(y)), ymin = lower, ymax=upper), color="black", alpha = 1) +
     #geom_line(aes(x = reorder(!!sym(x), !!sym(y)), y = !!sym(y), group = 1), color = "grey")+ 
@@ -743,16 +830,41 @@ p <- ggplot(data = df_4)+
     theme_minimal()+
     theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1), plot.margin = margin(t = 0, r = 0, b = 0, l = 50, unit = "pt"))+
     xlab("")+
-    ylab("Standardised estimated\ncausal effect")
+    ylab("Estimated causal effect")
+p
+```
+
+```{r causal_effect_ic50_full, fig.width=9.5, fig.height=5}
+x <- "c(strat)"
+y <- "effectsize_grfo"
+df_4 <- (df_3[df_3$resp_type == "ic50",])
+df_4$sig <- (df_4$`c(strat)` %in% label_data$`c(strat)`)
+df_4$label <- df_4$id
+df_4$label[df_4$sig == FALSE] <- NA
+
+p <- ggplot(data = df_4)+
+    geom_errorbar(aes(x = reorder(!!sym(x), !!sym(y)), ymin = lower, ymax=upper, color = sig), alpha = 0.5) +
+    geom_hline(yintercept=0, linetype='dotted', color = "grey66", size = 0.9)+
+    geom_point(aes(x = reorder(!!sym(x), !!sym(y)), y = !!sym(y), color = sig), alpha = 1) +
+    geom_point(data = df_4[df_4$sig,], aes(x = reorder(!!sym(x), !!sym(y)), y = !!sym(y)), color = "black", alpha = 1) +
+    geom_errorbar(data = df_4[df_4$sig,], aes(x = reorder(!!sym(x), !!sym(y)), ymin = lower, ymax=upper), color = "black", alpha = 1) +
+    theme_minimal()+
+    theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank(),
+        panel.grid.major.x = element_blank()
+        )+
+    xlab("")+
+    geom_text_repel(data = df_4, aes(x = reorder(!!sym(x), !!sym(y)), y = !!sym(y), label = label), nudge_y = 2, direction = "x", angle = 90)+
+    ylab("Estimated causal effect")+
+    scale_color_manual(values = c("grey80","black"))
 p
 ```
 
 ```{r causal_effect_ic50, fig.width=3.5, fig.height=3.5}
 x <- "id"
-y <- "effectsize_grfo"
-df_4 <- (df_3[df_3$resp_type == "ic50",])
-df_4 <- df_4[(df_4$`c(strat)` %in% label_data$`c(strat)`),]
-
+# only significants
+df_4 <- df_4[df_4$sig,]
 #df_4$id[1] <- "AZD7762 (BRCA, auc, gsva, 2)"
 #df_4$id[8] <- "AZD7762 (BRCA, auc, gsva, 1)"
 p <- ggplot(data = df_4)+
@@ -767,7 +879,7 @@ p <- ggplot(data = df_4)+
     theme_minimal()+
     theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1), plot.margin = margin(t = 0, r = 0, b = 0, l = 50, unit = "pt"))+
     xlab("")+
-    ylab("Standardised estimated\ncausal effect")
+    ylab("Estimated causal effect")
 p
 ```
 
@@ -785,7 +897,7 @@ dat <- left_join(dat,resp_ic50[,colnames(resp_auc) %in% c(sig_drugs,"COSMIC ID")
                       
 luad_emt <- dat %>%
   #mutate(mak = case_when(mak < median(na.omit(mak)) ~ "epithelial", T ~ "mesenchymal")) %>%
-  mutate(GSK269962A = case_when(`1192-GDSC1` < median(na.omit(`1192-GDSC1`)) ~ "sensitive", T ~ "resistant")) %>%
+  mutate(GSK269962A = case_when(`1192-GDSC1` < median(na.omit(`1192-GDSC1`)) ~ "high\nresponse", T ~ "low\nresponse")) %>%
   dplyr::select(c("COSMIC ID","MAK","GSVA","TAN","TW","1192-GDSC1")) %>%
   pivot_longer(cols = c("1192-GDSC1")) %>%
   dplyr::rename(drug = name, resp = value)
@@ -813,7 +925,8 @@ ggplot(data, aes(x=MAK, y = exp(data$resp))) +
   annotation_logticks(sides = "l")
 ```
 
-```{r brca_subtypes, fig.width=4, fig.height=4}
+```{r brca_subtypes, fig.width=5, fig.height=3}
+#, fig.width=4, fig.height=4
 #brca subtype50s Jaaks 2023 (only hit for AUC)
 brca_subtypes <- read_excel(paste0(path,"metadata/paper/41586_2022_4437_MOESM5_ESM.xlsx"))
 mut_brca <-read_csv(paste0(path,"metadata/matrix_mut_BRCA.csv"))
@@ -829,8 +942,8 @@ sig_drugs <- unlist(lapply(df_4$`c(strat)`, function(x) paste(strsplit(x,"-")[[1
 dat <- left_join(dat,resp_auc[,colnames(resp_auc) %in% c(sig_drugs,"COSMIC ID")], by = "COSMIC ID")
                       
 brca_emt <- dat %>%
-  mutate(`AZD7762 (1)` = case_when(`1022-GDSC2` < median(na.omit(`1022-GDSC2`)) ~ "sensitive", T ~ "resistant")) %>%
-  mutate(`AZD7762 (2)` = case_when(`1402-GDSC1` < median(na.omit(`1402-GDSC1`)) ~ "sensitive", T ~ "resistant")) %>%
+  mutate(`AZD7762 (1)` = case_when(`1022-GDSC2` < median(na.omit(`1022-GDSC2`)) ~ "high\nresponse", T ~ "low\nresponse")) %>%
+  mutate(`AZD7762 (2)` = case_when(`1402-GDSC1` < median(na.omit(`1402-GDSC1`)) ~ "high\nresponse", T ~ "low\nresponse")) %>%
   #mutate(mak = case_when(mak < median(na.omit(mak)) ~ "epithelial", T ~ "mesenchymal")) %>%
   dplyr::select(c("COSMIC ID","mak","gsva","tan","tagliazucchi","ESR1","AZD7762 (1)","AZD7762 (2)","PAM50","1022-GDSC2","1402-GDSC1","BRCA1_mut","BRCA2_mut")) %>%
   pivot_longer(cols = c("AZD7762 (1)","AZD7762 (2)")) %>%
@@ -846,7 +959,7 @@ stat.test <- brca_emt %>%
   add_y_position()
 stat.test$y.position <- stat.test$y.position # change position of labels
 ggboxplot(brca_emt, x = "resp", y = "ESR1", color = "resp", add = "jitter",facet.by = "drug")+theme_minimal()+
-  scale_color_manual(values = c("resistant" = "darkolivegreen4", "sensitive" = "darkolivegreen2"))+
+  scale_color_manual(values = c("low\nresponse" = "darkolivegreen4", "high\nresponse" = "darkolivegreen2"))+
   theme(legend.position = "none") + xlab("drug response") + ylab("ESR1 expression level")+
   stat_pvalue_manual(stat.test, bracket.nudge.y = 0.4, label = "p={p.adj}{p.adj.signif}")+
   ylim(c(min(na.omit(brca_emt$ESR1)),6))
@@ -869,7 +982,7 @@ stat.test.anova <- brca_emt %>%
     adjust_pvalue(method = "none") %>%
     add_significance() 
 ggboxplot(brca_emt%>%dplyr::select(-drug)%>%distinct, x = "PAM50", y = "mak", color = "PAM50", add = "jitter")+theme_minimal()+
-  scale_color_manual(values = c("resistant" = "darkolivegreen4", "sensitive" = "darkolivegreen2"))+
+  scale_color_manual(values = c("low\nresponse" = "darkolivegreen4", "high\nresponse" = "darkolivegreen2"))+
   theme(legend.position = "none") + xlab("BRCA subtype") + ylab("EMT score")+
   stat_pvalue_manual(stat.test, bracket.nudge.y = 0.4)+
   labs(
@@ -912,23 +1025,26 @@ ggboxplot(brca_emt%>%dplyr::select(-drug)%>%distinct, x = "PAM50", y = "1022-GDS
   #       limits = c(-20,5))+
   #annotation_logticks()
 
+# Reported statistics for brca
 summary(lm(data = brca_emt[brca_emt$drug == "AZD7762 (2)",],formula =  `1022-GDSC2` ~ ESR1 + PAM50 + mak))
-summary(lm(data = brca_emt[brca_emt$drug == "AZD7762 (2)",],formula =  `1022-GDSC2` ~ BRCA1_mut + BRCA2_mut + ESR1 + PAM50 + mak))
+summary(lm(data = brca_emt[brca_emt$drug == "AZD7762 (2)"&(brca_emt$`BRCA1/2 mutation` == 0),],formula =  `1022-GDSC2` ~ BRCA1_mut + BRCA2_mut + ESR1 + PAM50 + mak))
 stat.test.anova <- brca_emt[brca_emt$drug == "AZD7762 (2)",] %>%
     dplyr::select(-drug) %>%
     distinct %>%
     #anova_test(mak ~ PAM50) %>%
     anova_test(`1022-GDSC2` ~ PAM50 + BRCA1_mut + BRCA2_mut + mak) %>%
     adjust_pvalue(method = "none") %>%
-    add_significance() 
-ggplot((brca_emt%>%dplyr::select(-drug))[(brca_emt$PAM50 == "Basal")&(brca_emt$`BRCA1/2 mutation` == 0),]%>%distinct, aes(x = mak, y = `1022-GDSC2`)) +
+    add_significance()
+
+
+# BRCA wt and basal cancers scatter plot
+ggplot((brca_emt%>%dplyr::select(-drug))[(brca_emt$PAM50 == "Basal")&(brca_emt$`BRCA1/2 mutation` == 0),]%>%distinct, aes(x = mak, y = `1022-GDSC2`, shape = `BRCA1/2 mutation`)) +
     geom_point()+
     theme_minimal()+
-    theme(legend.position = "none") + xlab("BRCA subtype") + ylab("log(IC50")+
+    theme(legend.position = "none") + xlab("EMT score") + ylab("log(IC50")+
     #stat_pvalue_manual(stat.test, bracket.nudge.y = 0.4)+
     labs(
-        subtitle = get_test_label(stat.test.anova, detailed = TRUE))+
-    theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1), plot.margin = margin(t = 0, r = 0, b = 0, l = 50, unit = "pt"))
+        subtitle = get_test_label(stat.test.anova, detailed = TRUE))
 ```
 
 ```{r hsp90_17aag_auc, fig.width=2, fig.height=2}
@@ -946,7 +1062,7 @@ data <- exp[exp$NQO1_binary == "high",] # & exp$genotype_CT != "-"
 cortest <- cor.test(data$EMT_score, unlist(data[,dr]))
 p <- ggplot(data, aes(x=EMT_score, y = !!sym(dr))) + 
   geom_smooth(method = "lm", color = "gray50", fill = "gray65") + geom_point() +
-  xlab("EMT score") + ylab("AUC 17-AAG") + ggtitle("17-AAG response")+ #, subtitle = "functional NQO1 expression") +
+  xlab("EMT score") + ylab("AUC Tanespimycin") + ggtitle("Tanespimycin response")+ #, subtitle = "functional NQO1 expression") +
   theme_minimal() + #+ theme(plot.title = element_text(size = 20),
                   #        plot.subtitle = element_text(size = 18, face = "italic"),
                   #        axis.title = element_text(size = 20),
@@ -961,6 +1077,7 @@ p
 ```{r hsp90_17aag_auc_anno, fig.width=2, fig.height=2}
 anno <- read_csv(paste0(path,"data/Model.csv")) %>%
   dplyr::rename(`COSMIC ID` = COSMICID)
+anno$CellLineName[anno$CellLineName == "A-375"] <- "A375"
 data <- left_join(data, anno, by = "COSMIC ID", na_matches = "never")
 data$CellLineName[!(data$CellLineName %in% orderedcelllines)] <- ""
 p_anno <- p +
@@ -983,7 +1100,7 @@ data <- exp[exp$NQO1_binary == "high",] # & exp$genotype_CT != "-"
 cortest <- cor.test(data$EMT_score, unlist(data[,dr])) #Tanespimycin.1026.GDSC1
 p <- ggplot(data, aes(x=EMT_score, y = exp(!!sym(dr)))) + 
   geom_smooth(method = "lm", color = "gray50", fill = "gray65") + geom_point() +
-  xlab("EMT score") + ylab("IC50 17-AAG [µM]") + ggtitle("17-AAG response")+ #, subtitle = "functional NQO1 expression") +
+  xlab("EMT score") + ylab("IC50 Tanespimycin [µM]") + ggtitle("Tanespimycin response")+ #, subtitle = "functional NQO1 expression") +
   theme_minimal() + #+ theme(plot.title = element_text(size = 20),
                   #        plot.subtitle = element_text(size = 18, face = "italic"),
                   #        axis.title = element_text(size = 20),
@@ -1004,6 +1121,7 @@ p
 ```{r hsp90_17aag_ic50_anno, fig.width=2, fig.height=2}
 anno <- read_csv(paste0(path,"data/Model.csv")) %>%
   dplyr::rename(`COSMIC ID` = COSMICID)
+anno$CellLineName[anno$CellLineName == "A-375"] <- "A375"
 data <- left_join(data, anno, by = "COSMIC ID", na_matches = "never")
 data$CellLineName[!(data$CellLineName %in% orderedcelllines)] <- ""
 p_anno <- p +
@@ -1110,6 +1228,7 @@ for(drugname in na.omit(unique(dr_onalespib$cpd_name))){
 ```{r luminespib_experiment, fig.width=3, fig.height=3}
 anno <- read_csv(paste0(path,"data/Model.csv")) %>%
   rename(`COSMIC ID` = COSMICID)
+anno$CellLineName[anno$CellLineName == "A-375"] <- "A375"
 data <- full_join(resp_ic50, EMTscores) %>% dplyr::filter(`TCGA Desc` == "SKCM")
 data <- left_join(data, anno, by = "COSMIC ID")
 #
@@ -1128,7 +1247,7 @@ ggplot(data, aes(x=EMT_score, y = exp(`1559-GDSC2`), color = EMT_score)) +
      scale_y_log10(
          breaks = scales::trans_breaks("log10", function(x) 10^x),
          labels = scales::trans_format("log10", scales::math_format(10^.x)),
-         limits = c(-10,20)
+         limits = c(0.005,20)
      )+
   annotation_logticks(sides = "l")
 ```
@@ -1191,18 +1310,23 @@ for(i in 1:nrow(df_5)){
 # plot confidence band for luminespib AUC
 df_6 <- df_5[df_5$`c(strat)` == "1559-GDSC2-MAK-auc-SKCM",]
 error.measurement <- abs(df_6$effectsize_grf-df_6$upper)
+#ribbondata<- data.frame(x=c(0, 1),
+#                        ymin=c(  0 - error.measurement,
+#                                 1*df_6$effectsize_grf - error.measurement),
+#                        ymax=c( 0  + error.measurement,
+#                                1*df_6$effectsize_grf + error.measurement))
 ribbondata<- data.frame(x=c(0, 1),
-                        ymin=c(  0 - error.measurement,
+                        ymin=c(  df_6$effectsize_grf - error.measurement,
                                  1*df_6$effectsize_grf - error.measurement),
-                        ymax=c( 0  + error.measurement,
+                        ymax=c( df_6$effectsize_grf  + error.measurement,
                                 1*df_6$effectsize_grf + error.measurement))
 
 # import validation
 V <- read_excel(path = paste0(path,validation_aucs))
 V$tgf <- factor(unlist(lapply(V$CELL_DRUG, function(x) substr(x,1,1))))
 V$emt <- c("mes.","mes.","mes.","mes.","epi.","epi.","epi.","epi.")
-V$name <- c("RPMI-7951","RPMI-7951","A375","A375","SK-MEL-5","SK-MEL-5","IGR-37","IGR-37")
-V <- V[!V$name %in% "A375",]
+V$name <- c("RPMI-7951","A375","RPMI-7951","A375","SK-MEL-5","SK-MEL-5","IGR-37","IGR-37")
+#V <- V[!V$name %in% "A375",]
 V <- V %>% 
   mutate(label = factor(paste(emt,tgf)))
 V_save <- V
@@ -1240,39 +1364,46 @@ Vredci <- full_join(Vred %>%
                   mutate(lower = ribbondata$ymin[ribbondata$x == 0]) %>%
                   mutate(delta = 0)
                 ) %>%
-  mutate(name = factor(name,levels = c("RPMI-7951","IGR-37","SK-MEL-5","null")))
+  mutate(name = factor(name,levels = c("RPMI-7951","A375","IGR-37","SK-MEL-5","null")))
 
 ggplot(data = Vredci)+
   geom_errorbar(aes(x = name, y = -delta, ymin = lower, ymax=upper), color="black", width = 0.4) +
   geom_point(aes(x = name, y = -delta, color = emt, shape = tgf), size = 2.5) +
   theme_minimal()+
-  ylim(c(-0.05,0.05))+
+  ylim(c(-0.12,0.05))+
   ylab("delta AUC")+
   xlab("Cell line")+
   scale_color_manual(values = c("mes."="navyblue","epi."="darkorange","null"="black"))+
   scale_shape_manual(values = c(NA, 24)) +
-  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1))
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1))+
+  geom_hline(yintercept=0, linetype='dotted', color = "grey66", size = 0.9)
 ```
 
 ```{r validation_summary_ic50, fig.height=3, fig.width=2.5}
 # plot confidence band for luminespib AUC
 df_6 <- df_5[df_5$`c(strat)` == "1559-GDSC2-MAK-ic50-SKCM",]
 error.measurement <- abs(df_6$effectsize_grf-df_6$upper)
+# null emt change
+#ribbondata<- data.frame(x=c(0, 1),
+#                        ymin=c(  0 - error.measurement,
+#                                 1*df_6$effectsize_grf - error.measurement),
+#                        ymax=c( 0  + error.measurement,
+#                                1*df_6$effectsize_grf + error.measurement))
 ribbondata<- data.frame(x=c(0, 1),
-                        ymin=c(  0 - error.measurement,
+                        ymin=c(  df_6$effectsize_grf - error.measurement,
                                  1*df_6$effectsize_grf - error.measurement),
-                        ymax=c( 0  + error.measurement,
+                        ymax=c( df_6$effectsize_grf  + error.measurement,
                                 1*df_6$effectsize_grf + error.measurement))
 
 # import validation
 V <- read_excel(path = paste0(path,validation_ic50s))
 V$tgf <- factor(unlist(lapply(V$CELL_DRUG, function(x) substr(x,1,1))))
-V$emt <- c("epi.","epi.","epi.","mes.","epi.","mes.","mes.","mes.")
-V$name <- c("IGR-37","SK-MEL-5","SK-MEL-5","A375","IGR-37","RPMI-7951","RPMI-7951","A375")
+V$emt <- c("epi.","epi.","mes.","mes.","epi.","epi.","mes.","mes.")
+V$name <- c("IGR-37","SK-MEL-5","A375","A375","IGR-37","SK-MEL-5","RPMI-7951","RPMI-7951")
 V <- V %>% 
-  mutate(label = factor(paste(emt,tgf))) %>%
-  mutate(IC50 = `IC50(nM)`)
-V <- V[!V$name %in% "A375",]
+  mutate(label = factor(paste(emt,tgf))) #%>%
+  #mutate(IC50 = `IC50(nM)`)
+#V <- V[!V$name %in% "A375",]
 
 # summary
 s <- ggplot(V, aes(x = name, y = IC50, fill = label, color = label, group = label, shape = tgf)) + 
@@ -1308,7 +1439,7 @@ Vredci <- full_join(Vred %>%
                       mutate(lower = ribbondata$ymin[ribbondata$x == 0]) %>%
                       mutate(delta = 0)
 ) %>%
-  mutate(name = factor(name,levels = c("RPMI-7951","IGR-37","SK-MEL-5","null")))
+  mutate(name = factor(name,levels = c("RPMI-7951","A375","IGR-37","SK-MEL-5","null")))
 ggplot(data = Vredci)+
   geom_errorbar(aes(x = name, y = -delta, ymin = lower, ymax=upper), color="black", width = 0.4) +
   geom_point(aes(x = name, y = -delta, color = emt, shape = tgf), size = 2.5) +
@@ -1318,7 +1449,8 @@ ggplot(data = Vredci)+
   xlab("Cell line")+
   scale_color_manual(values = c("mes."="navyblue","epi."="darkorange","null"="black"))+
   scale_shape_manual(values = c(NA, 24)) +
-  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1))
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1))+
+  geom_hline(yintercept=0, linetype='dotted', color = "grey66", size = 0.9)
 ```
 
 ```{r hsp_others, fig.width=2, fig.height=2}
