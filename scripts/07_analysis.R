@@ -1,3 +1,4 @@
+setwd('emtpb/')
 library(ggplot2)
 library(ggrepel)
 library(dplyr)
@@ -5,10 +6,12 @@ library(readr)
 library(RColorBrewer)
 library(plotly)
 library(GGally)
+library(yaml)
+config <- yaml.load_file("scripts/config.yaml")
 
 # local paths
-path <- "/Users/alexander.ohnmacht/research/marisa/emtpb/"
-path_calcs <- "/Volumes/pheb/lustre/groups/cbm01/code/alexander.ohnmacht/emtpb/"
+path <- config$r_local_path
+path_calcs <- config$r_local_path_calcs
 
 # analysis
 df <- readRDS(paste0(path,"metadata/summaries/PERFORMANCES_v3.rds")) # path_calcs

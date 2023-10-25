@@ -1,7 +1,7 @@
 ---
 title: "emtpb manuscript figures"
 author: "Alexander Ohnmacht"
-date: "17/09/2023"
+date: "24/10/2023"
 output:
   pdf_document: 
     toc: true
@@ -40,7 +40,9 @@ knitr::opts_chunk$set(xtable.comment = FALSE,
                       dev = 'pdf' 
 )
 knitr::opts_chunk$set(echo = TRUE)
-path <- "/Users/alexander.ohnmacht/research/marisa/emtpb/"
+library(yaml)
+config <- yaml.load_file("scripts/config.yaml")
+path <- config$r_local_path
 ```
 
 ```{r setup, include=FALSE}
@@ -219,6 +221,32 @@ plot_drug <- function(
 }
 ```
 
+```{r numbers}
+# samples in GDSC drug screen
+length(table(resp_ic50$`TCGA Desc`[(!is.na(resp_ic50$`TCGA Desc`)&(resp_ic50$`TCGA Desc` != "UNCLASSIFIED"))])) #31
+length(which(!is.na(resp_ic50$`TCGA Desc`)&(resp_ic50$`TCGA Desc` != "UNCLASSIFIED"))) #790
+
+# number of genes in mutations and number of copy number segments
+mutations <- list.files(paste0(path,"metadata"), pattern = "matrix_mut", full.names = TRUE)
+mutations <- mutations[mutations != "/Users/alexander.ohnmacht/research/marisa/emtpb/metadata/matrix_mut_PANCAN.csv"]
+
+genelist <- c(); cnalist <- c(); nrowsSum <- 0; for(f in mutations){
+  tmp <- read_csv(f)
+  nrows <- nrow(tmp)
+  somaticmut <- unlist(lapply(colnames(tmp), function(x) strsplit(x,"_")[[1]][2]))
+  gene <- unlist(lapply(colnames(tmp), function(x) strsplit(x,"_")[[1]][1]))
+  cna <- unlist(lapply(gene, function(x) grepl("cna",x,fixed = TRUE)))
+  cna <- gene[cna]
+  gene <- gene[somaticmut == "mut" & (!is.na(somaticmut))]
+  genelist <- c(genelist, gene)
+  cnalist <- c(cnalist, cna)
+  nrowsSum <- nrows + nrowsSum
+}
+length(unique(genelist)) #218
+length(unique(cnalist)) #802
+nrowsSum # 775
+```
+
 ```{r ablation_correlation_auc, fig.width=3, fig.height=3}
 #path <- "/Volumes/pheb/lustre/groups/cbm01/code/alexander.ohnmacht/emtpb/"
 
@@ -362,8 +390,9 @@ h0 <- max((df_3[,unique(c(y,"fdr_eln"))] %>% arrange(fdr_eln) %>% filter(fdr_eln
 label_data <- df_3[(df_3$fdr_eln < fdr_threshold)&(df_3$filt %in% names(which(table(df_3[df_3$fdr_eln < 0.2,"filt"] ) >=min_hits))),]
 #h0 <- sort(unlist(na.omit(df_3[,"pvalue_eln"])))[max(which(sort(unlist(na.omit(df_3[,"fdr_eln"])))<=fdr_threshold))]
 p <- ggplot()+
-  geom_point(data = df_3, aes(x = !!sym(x), y = -log10(!!sym(y))), alpha = 0.2, color = pastel_colors[1])+
-  geom_point(data = df_3[(df_3$fdr_eln < fdr_threshold),], aes(x = !!sym(x), y = -log10(!!sym(y))), alpha = 0.8, color = pastel_colors[1])+
+  geom_point(data = df_3, aes(x = !!sym(x), y = -log10(!!sym(y))), alpha = 0.4, color = pastel_colors[1])+
+  geom_point(data = df_3[(df_3$fdr_eln < fdr_threshold),], aes(x = !!sym(x), y = -log10(!!sym(y))), alpha = 1, color = pastel_colors[1])+
+  geom_hline(yintercept=-log10(h0), linetype='dotted', color = "grey66", size = 0.9)+
   geom_text_repel(data = label_data,
                   aes(x = !!sym(x), y = -log10(!!sym(y)), label = id), color = "black", show_guide = F, min.segment.length = 0.02,
                   hjust = 1, direction = "y", nudge_x = 0.18- as.numeric(unlist(label_data[,x])), segment.size = 0.1, size = 3
@@ -371,7 +400,6 @@ p <- ggplot()+
   theme_minimal()+
   xlab("delta Pearson correlation")+
   ylab("unadjusted -log10(p)")+
-  geom_hline(yintercept=-log10(h0), linetype='dotted', color = "grey66", size = 0.9)+
   annotate("text", x = min(df_3[,x]%>%na.omit), y = -log10(h0), label = paste0("FDR<",as.character(round(fdr_threshold*100)),"%"), hjust = 0, vjust = 0)
 p
 ```
@@ -509,8 +537,9 @@ h0 <- max((df_3[,unique(c(y,"fdr_eln"))] %>% arrange(fdr_eln) %>% filter(fdr_eln
 label_data <- df_3[(df_3$fdr_eln < fdr_threshold)&(df_3$filt %in% names(which(table(df_3[df_3$fdr_eln < 0.2,"filt"] ) >=min_hits))),]
 #h0 <- sort(unlist(na.omit(df_3[,"pvalue_eln"])))[max(which(sort(unlist(na.omit(df_3[,"fdr_eln"])))<=fdr_threshold))]
 p <- ggplot()+
-  geom_point(data = df_3, aes(x = !!sym(x), y = -log10(!!sym(y))), alpha = 0.2, color = pastel_colors[1])+
-  geom_point(data = df_3[(df_3$fdr_eln < fdr_threshold),], aes(x = !!sym(x), y = -log10(!!sym(y))), alpha = 0.8, color = pastel_colors[1])+
+  geom_point(data = df_3, aes(x = !!sym(x), y = -log10(!!sym(y))), alpha = 0.4, color = pastel_colors[1])+
+  geom_point(data = df_3[(df_3$fdr_eln < fdr_threshold),], aes(x = !!sym(x), y = -log10(!!sym(y))), alpha = 1, color = pastel_colors[1])+
+  geom_hline(yintercept=-log10(h0), linetype='dotted', color = "grey66", size = 0.9)+
   geom_text_repel(data = label_data,
                   aes(x = !!sym(x), y = -log10(!!sym(y)), label = id), color = "black", show_guide = F, min.segment.length = 0.02,
                   hjust = 1, direction = "y", nudge_x = 0.32- as.numeric(unlist(label_data[,x])), segment.size = 0.1, size = 3
@@ -518,7 +547,6 @@ p <- ggplot()+
   theme_minimal()+
   xlab("delta Pearson correlation")+
   ylab("unadjusted -log10(p)")+
-  geom_hline(yintercept=-log10(h0), linetype='dotted', color = "grey66", size = 0.9)+
   annotate("text", x = min(df_3[,x]%>%na.omit), y = -log10(h0), label = paste0("FDR<",as.character(round(fdr_threshold*100)),"%"), hjust = 0, vjust = 0)
 p
 ```
@@ -771,6 +799,7 @@ label_data <- df_3[(df_3$fdr_eln < fdr_threshold)&(df_3$filt %in% names(which(ta
 p <- ggplot()+
   geom_point(data = df_3, aes(x = !!sym(x), y = -log10(!!sym(y)), color = TCGA), alpha = 0.2)+
   geom_point(data = df_3[(df_3$fdr_eln < fdr_threshold),], aes(x = !!sym(x), y = -log10(!!sym(y)), color = TCGA), alpha = 1)+
+  geom_hline(yintercept=-log10(h0), linetype='dotted', color = "grey66", size = 0.9)+
   geom_text_repel(data = label_data,
                   aes(x = !!sym(x), y = -log10(!!sym(y)), label = id), color = "black", show_guide = F, min.segment.length = 0.02,
                   hjust = 1, direction = "y", nudge_x = 0.1- as.numeric(unlist(label_data[,x])), segment.size = 0.1, size = 3
@@ -779,7 +808,6 @@ p <- ggplot()+
   xlab("delta Pearson correlation")+
   ylab("unadjusted -log10(p)")+
   scale_fill_brewer(name = "cancer type",palette="Pastel2", direction=-1) + scale_color_brewer(name = "cancer type",palette="Pastel2", direction=-1)+
-  geom_hline(yintercept=-log10(h0), linetype='dotted', color = "grey66", size = 0.9)+
   annotate("text", x = min(df_3[,x]%>%na.omit), y = -log10(h0), label = paste0("FDR<",as.character(round(fdr_threshold*100)),"%"), hjust = 0, vjust = 0)
 p
 ```

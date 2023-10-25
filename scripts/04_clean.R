@@ -1,10 +1,19 @@
+setwd('emtpb/')
+library(readr)
+library(dplyr)
+library(tidyr)
+library(tibble)
+library(purrr)
+library(yaml)
+config <- yaml.load_file("scripts/config.yaml")
+
 # local paths
-path <- "/Users/alexander.ohnmacht/research/marisa/emtpb/"
-path_calcs <- "/Volumes/pheb/lustre/groups/cbm01/code/alexander.ohnmacht/emtpb/"
+path <- config$r_local_path
+path_calcs <- config$r_local_path_calcs
 
 # server paths
-#path <- "/lustre/groups/cbm01/code/alexander.ohnmacht/emtpb/"
-#path_calcs <- path
+#path <- config$r_server_path
+#path_calcs <- config$r_server_path_calcs
 
 library(dplyr)
 myfnc1 <- function(arg1){

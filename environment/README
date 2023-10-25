@@ -1,3 +1,0 @@
-docker build --no-cache -f Dockerfile -t "aljoshoh/emtpb" .
-docker export $(docker create aljoshoh/emtpb) | gzip -c > metadata/emtpb.tar.gz
-

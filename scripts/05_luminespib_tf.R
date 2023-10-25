@@ -1,3 +1,4 @@
+setwd('emtpb/')
 library(readr)
 library(dplyr)
 library(ggplot2)
@@ -5,7 +6,9 @@ library(ggrepel)
 library(ggbeeswarm)
 library(tibble)
 library(data.table)
-path <- "/Users/alexander.ohnmacht/research/marisa/emtpb/"
+library(yaml)
+config <- yaml.load_file("scripts/config.yaml")
+path <- config$r_local_path
 
 # specifics
 library(enrichR)
