@@ -1,0 +1,14 @@
+# For benchmarking and modeling
+nf run train.nf --file=/path/to/file/02_benchmark.ipynb --amount=27 -profile slurm -bg > nf.log
+
+# on denbi
+nf run train.nf --file=/vol/emtpb/emtpb/scripts/02_benchmark.ipynb --amount=448 --desc=exp1 > nf.log
+
+
+# put --amount minus one !!
+
+# on chc
+nf run train_chc.nf --file=/lustre/groups/cbm01/code/alexander.ohnmacht/emtpb/scripts/02_benchmark_CI.ipynb --amount=156800 --desc=exp6 -profile slurm -bg -with-trace -ansi-log false --Xms500M --Xmx2G > nf.log
+
+# -> filler is not entirely complete because cancer types 1,6,8,11,12,13,18,19 (ALL, DLBC, GBM, LAML, LCML, LGG, MM, NB) does not exist in _secrier dataset
+
