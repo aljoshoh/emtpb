@@ -3,5 +3,11 @@ r_local_path: "/Users/alexander.ohnmacht/research/marisa/emtpb/"
 r_local_path_calcs: "/Volumes/pheb/lustre/groups/cbm01/code/alexander.ohnmacht/emtpb/"
 
 # R server paths
-server_path: "/lustre/groups/cbm01/code/alexander.ohnmacht/emtpb/"
-server_path_calcs: "/lustre/groups/cbm01/code/alexander.ohnmacht/emtpb/"
+r_server_path: "/lustre/groups/cbm01/code/alexander.ohnmacht/emtpb/"
+r_server_path_calcs: "/lustre/groups/cbm01/code/alexander.ohnmacht/emtpb/"
+
+# python server path
+python_server_path: '/lustre/groups/cbm01/code/alexander.ohnmacht/emtpb'
+
+# python local path
+python_local_path: '/vol/emtpb/emtpb'
