@@ -1,4 +1,5 @@
 ### NEEDS: dat_skcm
+library(readr)
 library(org.Hs.eg.db)
 library(httr)
 library(jsonlite)
@@ -24,8 +25,8 @@ query_lincs_id <- function(ID, # the InChIKey
   return(data)
 }
 
-drugs_info_lincs <- read_delim("emtpb/data/lincs/compoundinfo_beta.txt", delim = "\t")
-cl_info_lincs <- read_delim("emtpb/data/lincs/cellinfo_beta.txt", delim = "\t")
+drugs_info_lincs <- read_delim("data/lincs/compoundinfo_beta.txt", delim = "\t")
+cl_info_lincs <- read_delim("data/lincs/cellinfo_beta.txt", delim = "\t")
 
 # pert_id: 
 drugs_info_lincs[(drugs_info_lincs$cmap_name == "NVP-AUY922"),] #luminespib
@@ -53,7 +54,7 @@ sig <- query_lincs_id(ID, type = "pert_id", which = "sigs") #only non-empty sign
 sig <- sig[sig$is_gold,]
 
 # cell lines that are skin cancer
-lincs_anno <- read_csv(paste0("emtpb/data/Model.csv")) %>% dplyr::rename(`COSMIC ID` = COSMICID)
+lincs_anno <- read_csv(paste0("data/Model.csv")) %>% dplyr::rename(`COSMIC ID` = COSMICID)
 unique(sig$cell_id)
 
 # mesenchymal signatures
@@ -113,6 +114,8 @@ ll_epi_dn <- ll$SYMBOL[ll$emt =="epi" & (ll$type == "down")]
 ll_mes_up <- ll$SYMBOL[ll$emt =="mes" & (ll$type == "up")]
 ll_mes_dn <- ll$SYMBOL[ll$emt =="mes" & (ll$type == "down")]
 
+
+
 # check differential signatures
 #cat(paste(ll_epi_dn,collapse = "\n"))
 terms <- c("ChEA_2022","GO_Biological_Process_2023")
@@ -124,10 +127,12 @@ lll <- list(); for(id in levels(ll$id)){
 }; lll_df <- do.call(rbind, lll)
 lll_df <- lll_df[unlist(lapply(lll_df$Term, function(x) !grepl( "Mouse", x, fixed = TRUE))),]
 
-file_lincs_enrichment <- "emtpb/metadata/lincs/luminespib_enrichments_diff.rds"
+file_lincs_enrichment <- "metadata/lincs/luminespib_enrichments_diff.rds"
 if(!file.exists(file_lincs_enrichment)){
   saveRDS(object = lll_df, file = file_lincs_enrichment)
   }
+
+
 
 
 # check full signatures
@@ -141,21 +146,19 @@ lll <- list(); for(id in levels(l$id)){
 }; lll_df <- do.call(rbind, lll)
 lll_df <- lll_df[unlist(lapply(lll_df$Term, function(x) !grepl( "Mouse", x, fixed = TRUE))),]
 
-file_lincs_enrichment <- "emtpb/metadata/lincs/luminespib_enrichments_all.rds"
+file_lincs_enrichment <- "metadata/lincs/luminespib_enrichments_all.rds"
 if(!file.exists(file_lincs_enrichment)){
   saveRDS(object = lll_df, file = file_lincs_enrichment)
 }
 
 
 # test for overall signature
-file_lincs_enrichment <- "emtpb/metadata/lincs/luminespib_enrichments_all.rds"
+file_lincs_enrichment <- "metadata/lincs/luminespib_enrichments_all.rds"
 t<- readRDS(file_lincs_enrichment)
 t$emt <- unlist(lapply(t$id, function(x) strsplit(x," ")[[1]][1]))
 t$updn <- unlist(lapply(t$id, function(x) strsplit(x," ")[[1]][2]))
 t <- t[unlist(lapply(t$Term, function(x) grepl("GO:",x,fixed = TRUE))),]
 View(t)
-
-
 
 
 
@@ -187,7 +190,7 @@ ID <- "BRD-K41859756" #luminespib (2) -> no differential between epi and mes, bu
 sig <- query_lincs_id(ID, type = "pert_id", which = "sigs") #only non-empty signature for this
 sig <- sig[sig$is_gold,]
 # cell lines that are skin cancer
-lincs_anno <- read_csv(paste0("emtpb/data/Model.csv")) %>% dplyr::rename(`COSMIC ID` = COSMICID)
+lincs_anno <- read_csv(paste0("data/Model.csv")) %>% dplyr::rename(`COSMIC ID` = COSMICID)
 # mesenchymal signatures
 mes <- dat_skcm[dat_skcm$mak > mean(na.omit(dat_skcm$mak)),]
 mes <- mes[!is.na(mes$`COSMIC ID`),]
@@ -201,21 +204,156 @@ mes_dn <- suppressMessages(ensembldb::select(org.Hs.eg.db, keys = mes$dn100_bing
 
 intersect_dn <- enrichr(intersect(mes_dn, chir_sig_dn),terms);intersect_dn <- do.call(rbind, intersect_dn)
 
-file_lincs_enrichment <- "emtpb/metadata/lincs/chir_990221_luminespib_enrichments_common_dn.rds"
+file_lincs_enrichment <- "metadata/lincs/chir_990221_luminespib_enrichments_common_dn.rds"
 if(!file.exists(file_lincs_enrichment)){
   saveRDS(object = intersect_dn, file = file_lincs_enrichment)
 }
 
 
-# differential signatures ? no...
+if(F){
+  # differential signatures ? no...
+  ll <- l
+  ll %>% 
+    dplyr::select(c(type, emt, SYMBOL)) %>% 
+    distinct %>%
+    group_by(SYMBOL) %>%
+    filter((n_distinct(paste(emt, type)) == 2) & (n_distinct(emt) == 2) & (n_distinct(type) == 2)) %>%
+    ungroup %>% View
+}
+
+
+##### STAUROSPORINE #######################################################################################################################
+ID <- "BRD-K17953061" # staurosporine (2)
+#ID <- unlist(ddd[2,"pert_id"])
+
+
+sig <- query_lincs_id(ID, type = "pert_id", which = "sigs") #only non-empty signature for this
+sig <- sig[sig$is_gold,]
+
+# cell lines that are skin cancer
+lincs_anno <- read_csv(paste0("data/Model.csv")) %>% dplyr::rename(`COSMIC ID` = COSMICID)
+unique(sig$cell_id)
+
+# mesenchymal signatures
+mes <- dat_skcm[dat_skcm$mak > mean(na.omit(dat_skcm$mak)),]
+mes <- mes[!is.na(mes$`COSMIC ID`),]
+lincs_anno_mes <- dplyr::left_join(mes, lincs_anno, by = "COSMIC ID")
+mes <- unique(sig$cell_id)[unique(sig$cell_id) %in% stringr::str_replace_all(lincs_anno_mes$CellLineName, "[[:punct:]]", "")]
+message(length(mes)," mesenchymal cells")
+mes <- sig[sig$cell_id %in% mes,]
+
+# epithelial signatures
+epi <- dat_skcm[dat_skcm$mak < mean(na.omit(dat_skcm$mak)),]
+epi <- epi[!is.na(epi$`COSMIC ID`),]
+lincs_anno_epi <- left_join(epi, lincs_anno, by = "COSMIC ID")
+epi <- unique(sig$cell_id)[unique(sig$cell_id) %in% stringr::str_replace_all(lincs_anno_epi$CellLineName, "[[:punct:]]", "")]
+message(length(epi)," epithelial cells")
+epi <- sig[sig$cell_id %in% epi,]
+
+sig <- mes
+l <- list(); for(z in 1:nrow(sig)){
+  d1 <- suppressMessages(ensembldb::select(org.Hs.eg.db, keys = sig$dn100_bing[[z]], keytype = "ENTREZID", columns = "SYMBOL"))
+  d1$type <- "down"
+  d2 <- suppressMessages(ensembldb::select(org.Hs.eg.db, keys = sig$up100_bing[[z]], keytype = "ENTREZID", columns = "SYMBOL"))
+  d2$type <- "up"
+  d <- rbind(d1, d2)
+  d$cells <- list(unique(sig$cell_id[[z]]))
+  d$sig_id <- z
+  l[[i]] <- d
+  i <- i+1
+}; l <- do.call(rbind, l); l$emt <- "mes"; tmp <- l
+
+
 ll <- l
-ll %>% 
-  dplyr::select(c(type, emt, SYMBOL)) %>% 
+ll <- ll %>% 
+  dplyr::select(c(type, emt, SYMBOL, sig_id)) %>% 
   distinct %>%
   group_by(SYMBOL) %>%
-  filter((n_distinct(paste(emt, type)) == 2) & (n_distinct(emt) == 2) & (n_distinct(type) == 2)) %>%
-  ungroup %>% View
+  filter((n_distinct(paste(emt,type)) == 1)) %>%
+  ungroup #%>% View
+ll$id <- factor(paste(ll$emt, ll$type))
 
-  
+ll_mes_up <- ll$SYMBOL[ll$emt =="mes" & (ll$type == "up")]
+ll_mes_dn <- ll$SYMBOL[ll$emt =="mes" & (ll$type == "down")]
+
+
+# check full signatures
+l$id <- factor(paste(l$emt, l$type))
+terms <- c("ChEA_2022","GO_Biological_Process_2023")
+lll <- list(); for(id in levels(l$id)){
+  if(id == "mes down"){
+    tmp <- enrichr(intersect(mes_dn,l[l$id == id,"SYMBOL",drop = TRUE]), terms)
+    #tmp <- enrichr(l[l$id == id,"SYMBOL",drop = TRUE], terms)
+  }
+  if(id == "mes up"){
+    tmp <- enrichr(intersect(mes_up,l[l$id == id,"SYMBOL",drop = TRUE]), terms)
+    #tmp <- enrichr(l[l$id == id,"SYMBOL",drop = TRUE], terms)
+  }
+  tmp <- do.call(rbind, tmp)
+  tmp$id <- id
+  lll[[id]] <- tmp
+}; lll_df <- do.call(rbind, lll)
+lll_df <- lll_df[unlist(lapply(lll_df$Term, function(x) !grepl( "Mouse", x, fixed = TRUE))),]
+
+file_lincs_enrichment <- "metadata/lincs/staurosporine_enrichments_all.rds"
+if(!file.exists(file_lincs_enrichment)){
+  saveRDS(object = lll_df, file = file_lincs_enrichment)
+}
+
+
+# test for overall signature
+file_lincs_enrichment <- "metadata/lincs/staurosporine_enrichments_all.rds"
+t<- readRDS(file_lincs_enrichment)
+t$emt <- unlist(lapply(t$id, function(x) strsplit(x," ")[[1]][1]))
+t$updn <- unlist(lapply(t$id, function(x) strsplit(x," ")[[1]][2]))
+t <- t[unlist(lapply(t$Term, function(x) grepl("GO:",x,fixed = TRUE))),]
+View(t)
+##########################################################################################################################
+
+
+
+
+
+
+##########################################################################################################################
+#AZD-7762 # NEEDS: brca_emt
+
+#drugs_info_lincs[(drugs_info_lincs$cmap_name == "AZD-7762"),"pert_id"] #staurosporine
+# A tibble: 6 × 1
+#pert_id      
+#<chr>        
+#  1 BRD-U86686840 # nothing
+#2 BRD-U86686840 # nothing
+#3 BRD-K46056750 # hit
+#4 BRD-K46056750 # hit
+#5 BRD-K86525559 # nothing 
+#6 BRD-K86525559 # nothing
+
+
+ID <- "BRD-K46056750" #brca
+sig <- query_lincs_id(ID, type = "pert_id", which = "sigs") #only non-empty signature for this
+sig <- sig[sig$is_gold,]
+
+# cell lines that are breast cancer
+lincs_anno <- read_csv(paste0("data/Model.csv")) %>% dplyr::rename(`COSMIC ID` = COSMICID)
+unique(sig$cell_id)
+
+# mesenchymal signatures
+mes <- brca_emt[brca_emt$mak > mean(na.omit(brca_emt$mak)),]
+mes <- mes[!is.na(mes$`COSMIC ID`),]
+lincs_anno_mes <- dplyr::left_join(mes, lincs_anno, by = "COSMIC ID")
+mes <- unique(sig$cell_id)[unique(sig$cell_id) %in% stringr::str_replace_all(lincs_anno_mes$CellLineName, "[[:punct:]]", "")]
+message(length(mes)," mesenchymal cells")
+mes <- sig[sig$cell_id %in% mes,]
+
+# epithelial signatures
+epi <- brca_emt[brca_emt$mak < mean(na.omit(brca_emt$mak)),]
+epi <- epi[!is.na(epi$`COSMIC ID`),]
+lincs_anno_epi <- left_join(epi, lincs_anno, by = "COSMIC ID")
+epi <- unique(sig$cell_id)[unique(sig$cell_id) %in% stringr::str_replace_all(lincs_anno_epi$CellLineName, "[[:punct:]]", "")]
+message(length(epi)," epithelial cells")
+epi <- sig[sig$cell_id %in% epi,]
+
+# TBC
 
 

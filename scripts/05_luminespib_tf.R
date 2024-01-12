@@ -50,13 +50,14 @@ label_data <- df_3[(df_3$fdr_eln < fdr_threshold)&(df_3$filt %in% names(which(ta
 
 # loop over results
 lenriched <- list()
+lenriched_full <- list()
 for(j in 1:nrow(label_data)){
   print(round(j/nrow(label_data)*100))
   ct <- label_data$TCGA[j]
   dr <- label_data$drug[j]
   resp_type <- label_data$resp_type[j]
   response_type <- ifelse(label_data$resp_type[j] == "ic50","","_auc")
-  score <- ifelse(label_data$score[j] == "mak","",paste0("_",label_data$score[j]))
+  score <- ifelse(label_data$score[j] == "MAK","",paste0("_",label_data$score[j]))
   resp <- suppressMessages(read_csv(paste0(path,"metadata/matrix_resp",response_type,".csv"))) #%>% dplyr::select(-c("COSMIC ID","TCGA Desc"))
   EMTscores <- suppressMessages(read_csv(paste0(path,"metadata/EMTscores",score,".csv"))) #%>% dplyr::select(-c("COSMIC ID","TCGA Desc"))
   gex_gdsc_t <- rna %>% dplyr::filter(`COSMIC ID` %in% (EMTscores$`COSMIC ID`[EMTscores$`TCGA Desc` == ct]))
@@ -84,7 +85,8 @@ for(j in 1:nrow(label_data)){
   
   # enrichment
   #terms <- c("ARCHS4_Tissues","ChEA_2022","RNAseq_Automatic_GEO_Signatures_Human_Up","RNAseq_Automatic_GEO_Signatures_Human_Down","LINCS_L1000_CRISPR_KO_Consensus_Sigs")
-  terms <- "ChEA_2022"
+  #terms <- "ChEA_2022"
+  terms <- c("ChEA_2022")
   enriched_pos <- enrichr(limma_luminespib_pos, terms); enriched_pos <- do.call(rbind, enriched_pos); enriched_pos$sign <- "positive"
   enriched_neg <- enrichr(limma_luminespib_neg, terms); enriched_neg <- do.call(rbind, enriched_neg); enriched_neg$sign <- "negative"
   enriched <- rbind(enriched_pos, enriched_neg)
@@ -94,7 +96,27 @@ for(j in 1:nrow(label_data)){
   enriched$resp_type <-  label_data$resp_type[j]
   
   lenriched[[j]] <- enriched
+  
+  # enrichment
+  #terms <- c("ARCHS4_Tissues","ChEA_2022","RNAseq_Automatic_GEO_Signatures_Human_Up","RNAseq_Automatic_GEO_Signatures_Human_Down","LINCS_L1000_CRISPR_KO_Consensus_Sigs")
+  #terms <- "ChEA_2022"
+  terms <- c("GO_Biological_Process_2023")
+  enriched_pos <- enrichr(limma_luminespib_pos, terms); enriched_pos <- do.call(rbind, enriched_pos); enriched_pos$sign <- "positive"
+  enriched_neg <- enrichr(limma_luminespib_neg, terms); enriched_neg <- do.call(rbind, enriched_neg); enriched_neg$sign <- "negative"
+  enriched <- rbind(enriched_pos, enriched_neg)
+  enriched$cancertype <- ct
+  enriched$drug <- dr
+  enriched$drugname <-  label_data$drugname[j]
+  enriched$resp_type <-  label_data$resp_type[j]
+  
+  lenriched_full[[j]] <- enriched 
 }
+
+# save go results
+enr_full <- rbindlist(lenriched_full)
+saveRDS(enr_full, file = paste0(path,"metadata/paper/tf_target_enrichments_v3.rds"))
+
+# save tf results
 enr <- rbindlist(lenriched)
 saveRDS(enr, file = paste0(path,"metadata/paper/tf_target_enrichments_v2.rds"))
 saveRDS(limma_luminespib_auc, file = paste0(path,"metadata/paper/tf_diff_genes_luminespib_auc.rds"))
